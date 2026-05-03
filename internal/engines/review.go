@@ -184,24 +184,26 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 	report.ReportPath = r.writeReport("vault-review", renderReportMarkdown(report))
 	content := renderReportMarkdown(report)
 	reviewPath := filepath.ToSlash(filepath.Join("Reviews", fmt.Sprintf("Vault Review %s.md", time.Now().Format("2006-01-02"))))
-	generated = append(generated, &proposals.Proposal{
-		Type:    proposals.TypeVaultReview,
-		Title:   "Create vault review note",
-		Summary: "Create a durable review note sourced from the deterministic vault scan.",
-		SourceNotes: []proposals.SourceNote{{
-			Path:        ".naudia/reports/" + filepath.Base(report.ReportPath),
-			ObsidianURI: obsidian.BuildOpenNoteURI(r.Config.Vault.Name, reviewPath),
-			Reason:      "Deterministic vault review report.",
-		}},
-		Actions: []proposals.ProposalAction{{
-			ID:      "create-review-note",
-			Kind:    proposals.ActionCreateNote,
-			Path:    reviewPath,
-			Content: content,
-		}},
-		RiskLevel: proposals.RiskLow,
-		CreatedAt: time.Now().UTC(),
-	})
+	if fullReviewPath, err := util.ResolveInside(r.Config.Vault.Path, reviewPath); err == nil && !util.FileExists(fullReviewPath) {
+		generated = append(generated, &proposals.Proposal{
+			Type:    proposals.TypeVaultReview,
+			Title:   "Create vault review note",
+			Summary: "Create a durable review note sourced from the deterministic vault scan.",
+			SourceNotes: []proposals.SourceNote{{
+				Path:        ".naudia/reports/" + filepath.Base(report.ReportPath),
+				ObsidianURI: obsidian.BuildOpenNoteURI(r.Config.Vault.Name, reviewPath),
+				Reason:      "Deterministic vault review report.",
+			}},
+			Actions: []proposals.ProposalAction{{
+				ID:      "create-review-note",
+				Kind:    proposals.ActionCreateNote,
+				Path:    reviewPath,
+				Content: content,
+			}},
+			RiskLevel: proposals.RiskLow,
+			CreatedAt: time.Now().UTC(),
+		})
+	}
 	return report, generated, nil
 }
 
@@ -246,21 +248,24 @@ func (r Runner) proposalsFromAIReview(out aiReviewOutput) []*proposals.Proposal 
 		if slug == "" {
 			slug = fmt.Sprintf("ai-review-suggestion-%d", i+1)
 		}
-		generated = append(generated, &proposals.Proposal{
-			Type:        proposals.TypeVaultReview,
-			Title:       title,
-			Summary:     nonEmpty(p.Summary, "Create a sourced review note from AI-assisted vault review."),
-			SourceNotes: sources,
-			Actions: []proposals.ProposalAction{{
-				ID:      fmt.Sprintf("create-ai-review-suggestion-%d", i+1),
-				Kind:    proposals.ActionCreateNote,
-				Path:    filepath.ToSlash(filepath.Join("Reviews", "AI Suggestions", slug+".md")),
-				Content: content,
-			}},
-			RiskLevel:            risk,
-			RequiresConfirmation: risk == proposals.RiskHigh,
-			CreatedAt:            time.Now().UTC(),
-		})
+		actionPath := filepath.ToSlash(filepath.Join("Reviews", "AI Suggestions", slug+".md"))
+		if fullActionPath, err := util.ResolveInside(r.Config.Vault.Path, actionPath); err == nil && !util.FileExists(fullActionPath) {
+			generated = append(generated, &proposals.Proposal{
+				Type:        proposals.TypeVaultReview,
+				Title:       title,
+				Summary:     nonEmpty(p.Summary, "Create a sourced review note from AI-assisted vault review."),
+				SourceNotes: sources,
+				Actions: []proposals.ProposalAction{{
+					ID:      fmt.Sprintf("create-ai-review-suggestion-%d", i+1),
+					Kind:    proposals.ActionCreateNote,
+					Path:    actionPath,
+					Content: content,
+				}},
+				RiskLevel:            risk,
+				RequiresConfirmation: risk == proposals.RiskHigh,
+				CreatedAt:            time.Now().UTC(),
+			})
+		}
 	}
 	return generated
 }
