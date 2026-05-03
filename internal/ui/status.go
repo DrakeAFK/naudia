@@ -10,8 +10,10 @@ func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianU
 	vector := "keyword search only"
 	if st.VectorAvailable {
 		vector = "sqlite-vec native KNN ready"
-		if st.EmbeddingsStored > 0 {
+		if st.VectorIndexed > 0 {
 			vector = "sqlite-vec native KNN"
+		} else if st.EmbeddingsStored > 0 {
+			vector = "sqlite-vec ready; Go cosine fallback"
 		}
 	} else if st.EmbeddingsStored > 0 {
 		vector = "Go cosine fallback"
@@ -26,6 +28,7 @@ func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianU
 		{"Chat model", chatModel},
 		{"Embedding model", embeddingModel},
 		{"Embedded chunks", fmt.Sprintf("%d", st.EmbeddingsStored)},
+		{"Vector chunks", fmt.Sprintf("%d", st.VectorIndexed)},
 		{"Vector search", vector},
 		{"Obsidian URI", obsidianURI},
 		{"Obsidian CLI", obsidianCLI},

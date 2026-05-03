@@ -52,6 +52,14 @@ func (d *DB) Status(ctx context.Context, vaultPath string) (Status, error) {
 		JOIN notes n ON n.id = e.note_id
 		WHERE n.vault_id = ?
 	`, st.VaultID).Scan(&st.EmbeddingsStored)
+	if st.VectorAvailable {
+		_ = d.SQL.QueryRowContext(ctx, `
+			SELECT COUNT(*)
+			FROM vector_chunks vc
+			JOIN notes n ON n.id = vc.note_id
+			WHERE n.vault_id = ?
+		`, st.VaultID).Scan(&st.VectorIndexed)
+	}
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM proposals WHERE vault_id = ? AND status = 'pending'`, st.VaultID).Scan(&st.PendingProposals)
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM proposals WHERE vault_id = ? AND status = 'applied'`, st.VaultID).Scan(&st.AppliedProposals)
 	return st, nil
@@ -275,6 +283,79 @@ func (d *DB) StoreEmbedding(ctx context.Context, chunk ChunkRow, model string, v
 		_, _ = d.SQL.ExecContext(ctx, `INSERT OR REPLACE INTO vec_chunks(rowid, embedding) VALUES(?, ?)`, chunk.ID, string(embeddingJSON))
 	}
 	return nil
+}
+
+func (d *DB) BackfillVectorIndex(ctx context.Context) (int, error) {
+	if !d.VectorAvailable {
+		return 0, nil
+	}
+	rows, err := d.SQL.QueryContext(ctx, `
+		SELECT e.chunk_id, e.note_id, e.model, e.content_hash, e.dimensions, e.embedding_json
+		FROM embeddings e
+		JOIN chunks c ON c.id = e.chunk_id
+		LEFT JOIN vector_chunks vc
+		  ON vc.rowid = e.chunk_id
+		 AND vc.model = e.model
+		 AND vc.content_hash = e.content_hash
+		WHERE e.embedding_json IS NOT NULL
+		  AND e.content_hash = c.content_hash
+		  AND vc.rowid IS NULL
+	`)
+	if err != nil {
+		return 0, err
+	}
+
+	type vectorBackfillRow struct {
+		chunkID     int64
+		noteID      int64
+		model       string
+		contentHash string
+		vectorJSON  string
+	}
+	var pending []vectorBackfillRow
+	for rows.Next() {
+		var chunkID, noteID int64
+		var model, contentHash, raw string
+		var dimensions int
+		if err := rows.Scan(&chunkID, &noteID, &model, &contentHash, &dimensions, &raw); err != nil {
+			_ = rows.Close()
+			return 0, err
+		}
+		if dimensions != 768 {
+			continue
+		}
+		var vector []float64
+		if err := json.Unmarshal([]byte(raw), &vector); err != nil || len(vector) != 768 {
+			continue
+		}
+		embeddingJSON, _ := json.Marshal(vector)
+		pending = append(pending, vectorBackfillRow{
+			chunkID:     chunkID,
+			noteID:      noteID,
+			model:       model,
+			contentHash: contentHash,
+			vectorJSON:  string(embeddingJSON),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+
+	indexed := 0
+	for _, row := range pending {
+		if _, err := d.SQL.ExecContext(ctx, `INSERT OR REPLACE INTO vector_chunks(rowid, chunk_id, note_id, model, content_hash) VALUES(?, ?, ?, ?, ?)`, row.chunkID, row.chunkID, row.noteID, row.model, row.contentHash); err != nil {
+			return indexed, err
+		}
+		if _, err := d.SQL.ExecContext(ctx, `INSERT OR REPLACE INTO vec_chunks(rowid, embedding) VALUES(?, ?)`, row.chunkID, row.vectorJSON); err != nil {
+			return indexed, err
+		}
+		indexed++
+	}
+	return indexed, nil
 }
 
 func (d *DB) ChunksNeedingEmbeddings(ctx context.Context, vaultID int64, model string, limit int) ([]ChunkRow, error) {

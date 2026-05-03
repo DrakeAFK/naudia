@@ -5,6 +5,8 @@ type ScanStats struct {
 	NotesSkipped     int `json:"notes_skipped"`
 	ChunksIndexed    int `json:"chunks_indexed"`
 	EmbeddingsStored int `json:"embeddings_stored"`
+	TotalEmbeddings  int `json:"total_embeddings"`
+	VectorIndexed    int `json:"vector_indexed"`
 }
 
 type Status struct {
@@ -16,6 +18,7 @@ type Status struct {
 	DatabasePath     string `json:"database_path"`
 	VectorAvailable  bool   `json:"vector_available"`
 	EmbeddingsStored int    `json:"embeddings_stored"`
+	VectorIndexed    int    `json:"vector_indexed"`
 	PendingProposals int    `json:"pending_proposals"`
 	AppliedProposals int    `json:"applied_proposals"`
 }

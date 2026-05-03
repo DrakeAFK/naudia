@@ -43,6 +43,9 @@ func Open(ctx context.Context, path string, logger *log.Logger) (*DB, error) {
 		_ = conn.Close()
 		return nil, err
 	}
+	if _, err := store.BackfillVectorIndex(ctx); err != nil && logger != nil {
+		logger.Printf("sqlite-vec backfill failed: %v", err)
+	}
 	return store, nil
 }
 
@@ -77,6 +80,17 @@ func (d *DB) Migrate(ctx context.Context) error {
 		if applied {
 			if strings.HasPrefix(version, "002_") {
 				d.VectorAvailable = d.vectorTableExists(ctx)
+				if !d.VectorAvailable {
+					sqlText, err := migrations.ReadFile("migrations/" + name)
+					if err != nil {
+						return err
+					}
+					if _, err := d.SQL.ExecContext(ctx, string(sqlText)); err == nil {
+						d.VectorAvailable = true
+					} else if d.logger != nil {
+						d.logger.Printf("sqlite-vec unavailable: %v", err)
+					}
+				}
 			}
 			continue
 		}

@@ -82,8 +82,10 @@ naudia rollback 1
 Expected first-run notes:
 
 - `naudia scan` indexes Markdown and, when Ollama is online, stores embeddings locally.
+- `Embeddings updated` in scan output means embeddings created or refreshed during that run. `Total embeddings` is the current stored total.
 - Naudia bundles sqlite-vec through its SQLite runtime on supported platforms. You should not normally install sqlite-vec yourself.
 - If `status` says `Vector search  Go cosine fallback`, Naudia can still use stored Ollama embeddings for semantic candidates. It only means native sqlite-vec KNN was unavailable in that binary/runtime.
+- When a newer binary enables sqlite-vec for an existing vault, Naudia backfills the native vector table from stored embeddings automatically.
 - If `doctor` says no embeddings are stored, run `naudia scan` again after confirming Ollama is online with `naudia status`.
 - For a faster keyword-only scan, use `naudia scan --no-embeddings`.
 - Naudia creates proposals only; it does not mutate notes until `naudia apply`.

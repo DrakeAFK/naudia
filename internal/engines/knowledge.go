@@ -30,7 +30,8 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 			fmt.Sprintf("Notes indexed: %d", status.Notes),
 			fmt.Sprintf("Database: %s", status.DatabasePath),
 			fmt.Sprintf("Embeddings stored: %d", status.EmbeddingsStored),
-			fmt.Sprintf("Semantic search: %s", semanticSearchStatus(status.VectorAvailable, status.EmbeddingsStored, r.Config.Index.UseEmbeddings)),
+			fmt.Sprintf("Vector chunks: %d", status.VectorIndexed),
+			fmt.Sprintf("Semantic search: %s", semanticSearchStatus(status.VectorAvailable, status.EmbeddingsStored, status.VectorIndexed, r.Config.Index.UseEmbeddings)),
 			fmt.Sprintf("Pending proposals: %d", status.PendingProposals),
 		},
 	}
@@ -43,10 +44,13 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 	if r.Config.Index.UseEmbeddings && status.Notes > 0 && status.EmbeddingsStored == 0 {
 		report.Issues = append(report.Issues, Issue{Category: "Embeddings", Severity: "low", Description: "No stored embeddings were found. Semantic candidates are inactive until embeddings are created.", SuggestedAction: "Run naudia scan after Ollama is online, or use naudia scan --no-embeddings if keyword-only operation is intentional."})
 	}
+	if status.VectorAvailable && status.EmbeddingsStored > 0 && status.VectorIndexed == 0 {
+		report.Issues = append(report.Issues, Issue{Category: "Vector Search", Severity: "low", Description: "sqlite-vec is available, but no stored embeddings have been copied into the native vector table yet.", SuggestedAction: "Run naudia scan. Naudia will keep using Go cosine fallback until the native vector table is populated."})
+	}
 	return report, nil
 }
 
-func semanticSearchStatus(sqliteVec bool, embeddings int, useEmbeddings bool) string {
+func semanticSearchStatus(sqliteVec bool, embeddings int, vectorIndexed int, useEmbeddings bool) string {
 	if !useEmbeddings {
 		return "disabled by config"
 	}
@@ -57,7 +61,10 @@ func semanticSearchStatus(sqliteVec bool, embeddings int, useEmbeddings bool) st
 		return "not active; no stored embeddings yet"
 	}
 	if sqliteVec {
-		return "sqlite-vec native KNN over stored embeddings"
+		if vectorIndexed > 0 {
+			return "sqlite-vec native KNN over stored embeddings"
+		}
+		return "Go cosine fallback over stored embeddings; sqlite-vec ready"
 	}
 	return "Go cosine fallback over stored embeddings"
 }

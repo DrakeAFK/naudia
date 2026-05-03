@@ -263,7 +263,9 @@ func scanCmd() *cobra.Command {
 					{"Notes indexed", strconv.Itoa(stats.NotesIndexed)},
 					{"Notes skipped", strconv.Itoa(stats.NotesSkipped)},
 					{"Chunks indexed", strconv.Itoa(stats.ChunksIndexed)},
-					{"Embeddings", strconv.Itoa(stats.EmbeddingsStored)},
+					{"Embeddings updated", strconv.Itoa(stats.EmbeddingsStored)},
+					{"Total embeddings", strconv.Itoa(stats.TotalEmbeddings)},
+					{"Vector chunks", strconv.Itoa(stats.VectorIndexed)},
 				}
 				if len(warnings) > 0 {
 					rows = append(rows, [2]string{"Warnings", strings.Join(warnings, "; ")})
@@ -332,6 +334,10 @@ func scanVault(ctx context.Context, a *app.App, opts scanOptions) (db.ScanStats,
 		} else {
 			result.Warnings = append(result.Warnings, "Ollama unavailable; embeddings skipped")
 		}
+	}
+	if st, err := a.DB.Status(ctx, a.Config.Vault.Path); err == nil {
+		stats.TotalEmbeddings = st.EmbeddingsStored
+		stats.VectorIndexed = st.VectorIndexed
 	}
 	return stats, result.Warnings, nil
 }

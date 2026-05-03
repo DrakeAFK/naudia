@@ -21,6 +21,6 @@ Rollback never blindly restores a full file after drift. If the current file sti
 
 ## sqlite-vec
 
-Naudia imports `modernc.org/sqlite/vec`, which auto-registers sqlite-vec in supported builds. The migration `002_vec.sql` creates a `vec0` table for native KNN search, and the Go database tests verify both table creation and native vector lookup.
+Naudia imports `modernc.org/sqlite/vec`, which auto-registers sqlite-vec in supported builds. The migration `002_vec.sql` creates a `vec0` table for native KNN search, and the Go database tests verify table creation, migration repair, native vector lookup, and backfill from existing stored embeddings.
 
-If sqlite-vec is unavailable in a specific binary/runtime, Naudia keeps stored Ollama embeddings in SQLite and falls back to Go cosine search. The fallback uses the same embedding vectors, so result quality is comparable, but native sqlite-vec is preferred because it keeps nearest-neighbor execution inside SQLite and scales better for larger vaults. Core indexing and proposals do not depend on sqlite-vec availability.
+If sqlite-vec is unavailable in a specific binary/runtime, Naudia keeps stored Ollama embeddings in SQLite and falls back to Go cosine search. The fallback uses the same embedding vectors, so result quality is comparable, but native sqlite-vec is preferred because it keeps nearest-neighbor execution inside SQLite and scales better for larger vaults. When sqlite-vec becomes available for an existing vault, Naudia backfills the native vector table from stored embedding JSON without asking Ollama to regenerate unchanged embeddings. Core indexing and proposals do not depend on sqlite-vec availability.
