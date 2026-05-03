@@ -12,7 +12,7 @@ import (
 
 var (
 	headingRE      = regexp.MustCompile(`^(#{1,6})\s+(.+?)\s*$`)
-	wikiLinkRE     = regexp.MustCompile(`\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]`)
+	wikiLinkRE     = regexp.MustCompile(`\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]`)
 	markdownLinkRE = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 	tagRE          = regexp.MustCompile(`(^|\s)#([A-Za-z0-9][A-Za-z0-9_/-]*)`)
 	taskRE         = regexp.MustCompile(`^\s*[-*+]\s+\[([ xX])\]\s+(.+?)\s*$`)
@@ -48,14 +48,19 @@ func ParseNote(relPath string, absPath string, content string) Note {
 		}
 		for _, m := range wikiLinkRE.FindAllStringSubmatch(line, -1) {
 			linkText := ""
+			targetHeading := ""
 			if len(m) > 2 {
-				linkText = strings.TrimSpace(m[2])
+				targetHeading = strings.TrimSpace(m[2])
+			}
+			if len(m) > 3 {
+				linkText = strings.TrimSpace(m[3])
 			}
 			links = append(links, Link{
-				Kind:       "wiki",
-				TargetRaw:  strings.TrimSpace(m[1]),
-				LinkText:   linkText,
-				LineNumber: lineNo,
+				Kind:          "wiki",
+				TargetRaw:     strings.TrimSpace(m[1]),
+				TargetHeading: targetHeading,
+				LinkText:      linkText,
+				LineNumber:    lineNo,
 			})
 		}
 		for _, m := range markdownLinkRE.FindAllStringSubmatch(line, -1) {
@@ -63,11 +68,17 @@ func ParseNote(relPath string, absPath string, content string) Note {
 			if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") || strings.HasPrefix(target, "obsidian://") || strings.HasPrefix(target, "#") {
 				continue
 			}
+			targetHeading := ""
+			if before, after, ok := strings.Cut(target, "#"); ok {
+				target = before
+				targetHeading = after
+			}
 			links = append(links, Link{
-				Kind:       "markdown",
-				TargetRaw:  target,
-				LinkText:   strings.TrimSpace(m[1]),
-				LineNumber: lineNo,
+				Kind:          "markdown",
+				TargetRaw:     target,
+				TargetHeading: targetHeading,
+				LinkText:      strings.TrimSpace(m[1]),
+				LineNumber:    lineNo,
 			})
 		}
 		for _, m := range tagRE.FindAllStringSubmatch(line, -1) {
@@ -107,6 +118,7 @@ func ResolveLinks(notes []Note) []Note {
 	byPath := map[string]string{}
 	byStem := map[string][]string{}
 	byAlias := map[string][]string{}
+	headingsByPath := map[string]map[string]bool{}
 	for _, n := range notes {
 		key := strings.ToLower(strings.TrimSuffix(n.Path, ".md"))
 		byPath[strings.ToLower(n.Path)] = n.Path
@@ -118,6 +130,10 @@ func ResolveLinks(notes []Note) []Note {
 			if alias != "" {
 				byAlias[alias] = append(byAlias[alias], n.Path)
 			}
+		}
+		headingsByPath[n.Path] = map[string]bool{}
+		for _, heading := range n.Headings {
+			headingsByPath[n.Path][normalizeHeading(heading.Text)] = true
 		}
 	}
 	for i := range notes {
@@ -136,12 +152,22 @@ func ResolveLinks(notes []Note) []Note {
 				resolved = list[0]
 			}
 			if resolved != "" {
+				if notes[i].Links[j].TargetHeading != "" && !headingsByPath[resolved][normalizeHeading(notes[i].Links[j].TargetHeading)] {
+					continue
+				}
 				notes[i].Links[j].Resolved = true
 				notes[i].Links[j].TargetPath = resolved
 			}
 		}
 	}
 	return notes
+}
+
+func normalizeHeading(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.Trim(s, "#")
+	s = strings.Join(strings.Fields(s), " ")
+	return s
 }
 
 func ParseFrontmatterJSON(frontmatter map[string]any) string {

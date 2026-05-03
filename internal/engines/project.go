@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakeafk/naudia/internal/ai"
 	"github.com/drakeafk/naudia/internal/contextpack"
 	"github.com/drakeafk/naudia/internal/proposals"
 )
@@ -22,19 +23,9 @@ func (r Runner) Project(ctx context.Context, name string) (ProjectResult, error)
 		return ProjectResult{}, err
 	}
 	folder := "Projects/" + safeName(name)
-	contextText := contextpack.Render(pack)
-	readme := fmt.Sprintf("# %s\n\n## Current Understanding\n\nThis project memory was compiled from selected vault context. Review the sources before applying further edits.\n\n## Sources\n\n%s\n", name, sourceList(pack))
-	plan := fmt.Sprintf("# %s Plan\n\n## Context\n\n%s\n", name, contextText)
-	todo := fmt.Sprintf("# %s TODO\n\n%s\n", name, tasksFromContext(pack))
-	decisions := fmt.Sprintf("# %s Decisions\n\n%s\n", name, decisionsFromContext(pack))
-	questions := fmt.Sprintf("# %s Questions\n\n%s\n", name, questionsFromContext(pack))
-	files := map[string]string{
-		folder + "/README.md":    readme,
-		folder + "/PLAN.md":      plan,
-		folder + "/TODO.md":      todo,
-		folder + "/DECISIONS.md": decisions,
-		folder + "/QUESTIONS.md": questions,
-		folder + "/CONTEXT.md":   "# " + name + " Context\n\n" + contextText + "\n",
+	files := r.projectFilesFromAI(ctx, name, folder, pack)
+	if len(files) == 0 {
+		files = deterministicProjectFiles(name, folder, pack)
 	}
 	var actions []proposals.ProposalAction
 	for path, content := range files {
@@ -57,6 +48,83 @@ func (r Runner) Project(ctx context.Context, name string) (ProjectResult, error)
 		proposal.SourceNotes = append(proposal.SourceNotes, proposals.SourceNote{Path: item.NotePath, ObsidianURI: item.ObsidianURI, Reason: item.Reason})
 	}
 	return ProjectResult{Name: name, Context: pack, Proposal: proposal}, nil
+}
+
+func (r Runner) projectFilesFromAI(ctx context.Context, name, folder string, pack contextpack.Pack) map[string]string {
+	if r.AI == nil || r.AI.HealthCheck(ctx) != nil || len(pack.Items) == 0 {
+		return nil
+	}
+	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{
+			{Role: "system", Content: ai.SystemPrompt},
+			{Role: "user", Content: ai.ProjectPrompt + "\n\nProject: " + name + "\nContext pack:\n" + contextpack.Render(pack)},
+		},
+		Temperature: 0.1,
+		Format:      "json",
+	})
+	if err != nil {
+		return nil
+	}
+	var out aiProjectOutput
+	if err := ai.DecodeJSON(ctx, r.AI, resp.Content, &out); err != nil {
+		return nil
+	}
+	files := map[string]string{}
+	for _, file := range out.SuggestedFiles {
+		content := strings.TrimSpace(file.Content)
+		if content == "" {
+			continue
+		}
+		path := sanitizeProjectFilePath(folder, file.Path)
+		files[path] = content + "\n"
+	}
+	if len(files) > 0 {
+		if _, ok := files[folder+"/CONTEXT.md"]; !ok {
+			files[folder+"/CONTEXT.md"] = "# " + name + " Context\n\n" + contextpack.Render(pack) + "\n"
+		}
+		return files
+	}
+	return nil
+}
+
+func deterministicProjectFiles(name, folder string, pack contextpack.Pack) map[string]string {
+	contextText := contextpack.Render(pack)
+	readme := fmt.Sprintf("# %s\n\n## Current Understanding\n\nThis project memory was compiled from selected vault context. Review the sources before applying further edits.\n\n## Sources\n\n%s\n", name, sourceList(pack))
+	plan := fmt.Sprintf("# %s Plan\n\n## Context\n\n%s\n", name, contextText)
+	todo := fmt.Sprintf("# %s TODO\n\n%s\n", name, tasksFromContext(pack))
+	decisions := fmt.Sprintf("# %s Decisions\n\n%s\n", name, decisionsFromContext(pack))
+	questions := fmt.Sprintf("# %s Questions\n\n%s\n", name, questionsFromContext(pack))
+	return map[string]string{
+		folder + "/README.md":    readme,
+		folder + "/PLAN.md":      plan,
+		folder + "/TODO.md":      todo,
+		folder + "/DECISIONS.md": decisions,
+		folder + "/QUESTIONS.md": questions,
+		folder + "/CONTEXT.md":   "# " + name + " Context\n\n" + contextText + "\n",
+	}
+}
+
+func sanitizeProjectFilePath(folder, suggested string) string {
+	suggested = strings.TrimSpace(strings.ReplaceAll(suggested, "\\", "/"))
+	suggested = strings.TrimLeft(suggested, "/")
+	if suggested == "" {
+		return folder + "/CONTEXT.md"
+	}
+	if strings.Contains(suggested, "..") {
+		suggested = strings.ReplaceAll(suggested, "..", "")
+	}
+	if strings.HasPrefix(suggested, folder+"/") {
+		return suggested
+	}
+	base := strings.TrimPrefix(suggested, "Projects/")
+	if strings.Contains(base, "/") {
+		parts := strings.Split(base, "/")
+		base = parts[len(parts)-1]
+	}
+	if !strings.HasSuffix(strings.ToLower(base), ".md") {
+		base += ".md"
+	}
+	return folder + "/" + base
 }
 
 func sourceList(pack contextpack.Pack) string {

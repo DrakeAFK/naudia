@@ -69,7 +69,7 @@ func (m Manager) Apply(ctx context.Context, proposalID int64) (ApplyResult, erro
 	}
 	result := ApplyResult{ProposalID: proposalID}
 	for _, action := range p.Actions {
-		change, err := m.applyAction(action, proposalID)
+		change, journalID, err := m.applyAction(ctx, action, proposalID)
 		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", action.ID, err))
 			_ = m.Store.UpdateProposalStatus(ctx, proposalID, "partially_applied")
@@ -97,7 +97,13 @@ func (m Manager) Apply(ctx context.Context, proposalID int64) (ApplyResult, erro
 		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", action.ID, err))
 			_ = m.Store.UpdateProposalStatus(ctx, proposalID, "partially_applied")
+			if journalID > 0 {
+				_ = m.Store.CompleteApplyJournal(ctx, journalID, "db_record_failed", err.Error())
+			}
 			return result, err
+		}
+		if journalID > 0 {
+			_ = m.Store.CompleteApplyJournal(ctx, journalID, "applied", "")
 		}
 		result.Applied = append(result.Applied, fmt.Sprintf("%d:%s", id, action.Path))
 	}
@@ -107,49 +113,38 @@ func (m Manager) Apply(ctx context.Context, proposalID int64) (ApplyResult, erro
 	return result, nil
 }
 
-func (m Manager) applyAction(action ProposalAction, proposalID int64) (Change, error) {
+func (m Manager) applyAction(ctx context.Context, action ProposalAction, proposalID int64) (Change, int64, error) {
 	if action.ID == "" {
 		action.ID = string(action.Kind) + "-" + action.Path
 	}
 	full, err := util.ResolveInside(m.VaultPath, action.Path)
 	if err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
 	if action.Kind == ActionMoveNote || action.Kind == ActionRenameNote {
-		return m.applyMove(action, proposalID, full)
+		return m.applyMove(ctx, action, proposalID, full)
 	}
 	if action.Kind == ActionDeleteNote {
-		return m.applyDelete(action, proposalID, full)
+		return m.applyDelete(ctx, action, proposalID, full)
 	}
 	exists := util.FileExists(full)
 	var previous string
 	if exists {
 		b, err := os.ReadFile(full)
 		if err != nil {
-			return Change{}, err
+			return Change{}, 0, err
 		}
 		previous = string(b)
 	}
 	if action.ExpectedHash != "" && util.SHA256String(previous) != action.ExpectedHash {
-		return Change{}, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
+		return Change{}, 0, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
 	}
 	applied, anchors, ranges, err := applyContentAction(action, previous, exists)
 	if err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
-	if err := util.WriteFileAtomic(full, []byte(applied), 0o644); err != nil {
-		return Change{}, err
-	}
-	verified, err := os.ReadFile(full)
-	if err != nil {
-		return Change{}, err
-	}
-	afterHash := util.SHA256Bytes(verified)
-	expectedAfter := util.SHA256String(applied)
-	if afterHash != expectedAfter {
-		return Change{}, fmt.Errorf("post-write hash verification failed for %s", action.Path)
-	}
-	return Change{
+	afterHash := util.SHA256String(applied)
+	change := Change{
 		ProposalID:      proposalID,
 		ActionID:        action.ID,
 		NotePath:        action.Path,
@@ -163,32 +158,48 @@ func (m Manager) applyAction(action ProposalAction, proposalID int64) (Change, e
 		AffectedRanges:  ranges,
 		Anchors:         anchors,
 		AppliedAt:       time.Now().UTC(),
-	}, nil
+	}
+	journalID, err := m.journalPlannedChange(ctx, change)
+	if err != nil {
+		return Change{}, 0, err
+	}
+	if err := util.WriteFileAtomic(full, []byte(applied), 0o644); err != nil {
+		_ = m.Store.CompleteApplyJournal(ctx, journalID, "write_failed", err.Error())
+		return Change{}, journalID, err
+	}
+	verified, err := os.ReadFile(full)
+	if err != nil {
+		_ = m.Store.CompleteApplyJournal(ctx, journalID, "verify_failed", err.Error())
+		return Change{}, journalID, err
+	}
+	if util.SHA256Bytes(verified) != afterHash {
+		err := fmt.Errorf("post-write hash verification failed for %s", action.Path)
+		_ = m.Store.CompleteApplyJournal(ctx, journalID, "verify_failed", err.Error())
+		return Change{}, journalID, err
+	}
+	return change, journalID, nil
 }
 
-func (m Manager) applyMove(action ProposalAction, proposalID int64, src string) (Change, error) {
+func (m Manager) applyMove(ctx context.Context, action ProposalAction, proposalID int64, src string) (Change, int64, error) {
 	dst, err := util.ResolveInside(m.VaultPath, action.NewPath)
 	if err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
 	previousBytes, err := os.ReadFile(src)
 	if err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
 	previous := string(previousBytes)
 	if action.ExpectedHash != "" && util.SHA256String(previous) != action.ExpectedHash {
-		return Change{}, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
+		return Change{}, 0, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
 	}
 	if util.FileExists(dst) && !action.AllowOverwrite {
-		return Change{}, util.Wrap(util.ErrConflict, "destination exists: %s", action.NewPath)
+		return Change{}, 0, util.Wrap(util.ErrConflict, "destination exists: %s", action.NewPath)
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
-	if err := os.Rename(src, dst); err != nil {
-		return Change{}, err
-	}
-	return Change{
+	change := Change{
 		ProposalID:      proposalID,
 		ActionID:        action.ID,
 		NotePath:        action.Path,
@@ -205,22 +216,28 @@ func (m Manager) applyMove(action ProposalAction, proposalID int64, src string) 
 			SectionID:     "move",
 		}},
 		AppliedAt: time.Now().UTC(),
-	}, nil
+	}
+	journalID, err := m.journalPlannedChange(ctx, change)
+	if err != nil {
+		return Change{}, 0, err
+	}
+	if err := os.Rename(src, dst); err != nil {
+		_ = m.Store.CompleteApplyJournal(ctx, journalID, "write_failed", err.Error())
+		return Change{}, journalID, err
+	}
+	return change, journalID, nil
 }
 
-func (m Manager) applyDelete(action ProposalAction, proposalID int64, full string) (Change, error) {
+func (m Manager) applyDelete(ctx context.Context, action ProposalAction, proposalID int64, full string) (Change, int64, error) {
 	previousBytes, err := os.ReadFile(full)
 	if err != nil {
-		return Change{}, err
+		return Change{}, 0, err
 	}
 	previous := string(previousBytes)
 	if action.ExpectedHash != "" && util.SHA256String(previous) != action.ExpectedHash {
-		return Change{}, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
+		return Change{}, 0, util.Wrap(util.ErrStale, "proposal action %s is stale for %s", action.ID, action.Path)
 	}
-	if err := os.Remove(full); err != nil {
-		return Change{}, err
-	}
-	return Change{
+	change := Change{
 		ProposalID:      proposalID,
 		ActionID:        action.ID,
 		NotePath:        action.Path,
@@ -237,7 +254,53 @@ func (m Manager) applyDelete(action ProposalAction, proposalID int64, full strin
 			SectionID:     "delete",
 		}},
 		AppliedAt: time.Now().UTC(),
-	}, nil
+	}
+	journalID, err := m.journalPlannedChange(ctx, change)
+	if err != nil {
+		return Change{}, 0, err
+	}
+	if err := os.Remove(full); err != nil {
+		_ = m.Store.CompleteApplyJournal(ctx, journalID, "write_failed", err.Error())
+		return Change{}, journalID, err
+	}
+	return change, journalID, nil
+}
+
+func (m Manager) journalPlannedChange(ctx context.Context, change Change) (int64, error) {
+	rangesJSON, _ := json.Marshal(change.AffectedRanges)
+	anchorsJSON, _ := json.Marshal(change.Anchors)
+	rec := db.ChangeRecord{
+		ProposalID:         change.ProposalID,
+		ActionID:           change.ActionID,
+		NotePath:           change.NotePath,
+		ActionKind:         change.ActionKind,
+		BeforeHash:         change.BeforeHash,
+		AfterHash:          change.AfterHash,
+		PreviousContent:    change.PreviousContent,
+		AppliedContent:     change.AppliedContent,
+		ForwardPatch:       change.ForwardPatch,
+		InversePatch:       change.InversePatch,
+		AffectedRangesJSON: string(rangesJSON),
+		AnchorsJSON:        string(anchorsJSON),
+	}
+	data, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return 0, err
+	}
+	path := filepath.Join(m.VaultPath, ".naudia", "changes", fmt.Sprintf("proposal-%d-%s.json", change.ProposalID, sanitizeActionID(change.ActionID)))
+	if err := util.WriteFileAtomic(path, data, 0o644); err != nil {
+		return 0, err
+	}
+	return m.Store.SaveApplyJournal(ctx, rec, string(data))
+}
+
+func sanitizeActionID(id string) string {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "action"
+	}
+	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-", " ", "-")
+	return replacer.Replace(id)
 }
 
 func applyContentAction(action ProposalAction, previous string, exists bool) (string, []PatchAnchor, []AffectedRange, error) {

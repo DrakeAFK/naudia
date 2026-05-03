@@ -2,6 +2,7 @@ package vector
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sort"
 
@@ -24,6 +25,19 @@ func Search(ctx context.Context, store *db.DB, embedder ai.EmbeddingClient, vaul
 	}
 	if len(embeds) == 0 || len(embeds[0].Vector) == 0 {
 		return nil, nil
+	}
+	if store.VectorAvailable {
+		if queryJSON, err := json.Marshal(embeds[0].Vector); err == nil {
+			if rows, err := store.SearchVecChunks(ctx, vaultID, model, string(queryJSON), limit); err == nil && len(rows) > 0 {
+				results := make([]Result, 0, len(rows))
+				for _, row := range rows {
+					if row.Score >= minScore {
+						results = append(results, Result{Chunk: row.Chunk, Score: row.Score})
+					}
+				}
+				return results, nil
+			}
+		}
 	}
 	chunks, vectors, err := store.ListEmbeddings(ctx, vaultID, model)
 	if err != nil {

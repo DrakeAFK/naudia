@@ -115,8 +115,8 @@ func (d *DB) IndexScan(ctx context.Context, vaultID int64, result vault.ScanResu
 						targetID = id
 					}
 				}
-				if _, err := tx.ExecContext(ctx, `INSERT INTO links(source_note_id, target_raw, target_note_id, link_text, line_number, resolved) VALUES(?, ?, ?, ?, ?, ?)`,
-					noteID, l.TargetRaw, targetID, l.LinkText, l.LineNumber, boolInt(l.Resolved)); err != nil {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO links(source_note_id, target_raw, target_heading, target_note_id, link_text, line_number, resolved) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+					noteID, l.TargetRaw, l.TargetHeading, targetID, l.LinkText, l.LineNumber, boolInt(l.Resolved)); err != nil {
 					return err
 				}
 			}
@@ -329,6 +329,45 @@ func (d *DB) ListEmbeddings(ctx context.Context, vaultID int64, model string) ([
 	return chunks, vectors, rows.Err()
 }
 
+type VectorSearchRow struct {
+	Chunk ChunkRow
+	Score float64
+}
+
+func (d *DB) SearchVecChunks(ctx context.Context, vaultID int64, model string, queryJSON string, limit int) ([]VectorSearchRow, error) {
+	if !d.VectorAvailable {
+		return nil, fmt.Errorf("sqlite-vec unavailable")
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	rows, err := d.SQL.QueryContext(ctx, `
+		SELECT c.id, c.note_id, n.path, n.title, c.chunk_index, c.content, c.content_hash,
+		       COALESCE(c.heading_context, ''), COALESCE(c.token_estimate, 0), distance
+		FROM vec_chunks v
+		JOIN vector_chunks vc ON vc.rowid = v.rowid
+		JOIN chunks c ON c.id = vc.chunk_id
+		JOIN notes n ON n.id = c.note_id
+		WHERE n.vault_id = ? AND vc.model = ? AND v.embedding MATCH ? AND k = ?
+		ORDER BY distance
+	`, vaultID, model, queryJSON, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []VectorSearchRow
+	for rows.Next() {
+		var row VectorSearchRow
+		var distance float64
+		if err := rows.Scan(&row.Chunk.ID, &row.Chunk.NoteID, &row.Chunk.NotePath, &row.Chunk.Title, &row.Chunk.ChunkIndex, &row.Chunk.Content, &row.Chunk.ContentHash, &row.Chunk.HeadingContext, &row.Chunk.TokenEstimate, &distance); err != nil {
+			return nil, err
+		}
+		row.Score = 1 / (1 + distance)
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
 func (d *DB) SaveProposal(ctx context.Context, vaultID int64, typ, title, summary, proposalJSON, patchText string) (int64, error) {
 	res, err := d.SQL.ExecContext(ctx, `
 		INSERT INTO proposals(vault_id, type, title, summary, status, proposal_json, patch_text, created_at)
@@ -400,6 +439,22 @@ func (d *DB) SaveChange(ctx context.Context, c ChangeRecord) (int64, error) {
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func (d *DB) SaveApplyJournal(ctx context.Context, c ChangeRecord, plannedJSON string) (int64, error) {
+	res, err := d.SQL.ExecContext(ctx, `
+		INSERT INTO apply_journal(proposal_id, action_id, note_path, action_kind, planned_change_json, status, created_at)
+		VALUES(?, ?, ?, ?, ?, 'planned', ?)
+	`, c.ProposalID, c.ActionID, c.NotePath, c.ActionKind, plannedJSON, util.NowText())
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (d *DB) CompleteApplyJournal(ctx context.Context, id int64, status string, errorText string) error {
+	_, err := d.SQL.ExecContext(ctx, `UPDATE apply_journal SET status = ?, completed_at = datetime('now'), error = ? WHERE id = ?`, status, errorText, id)
+	return err
 }
 
 func (d *DB) ListChanges(ctx context.Context, proposalID int64) ([]ChangeRecord, error) {

@@ -26,12 +26,13 @@ type Heading struct {
 }
 
 type Link struct {
-	Kind       string `json:"kind"`
-	TargetRaw  string `json:"target_raw"`
-	LinkText   string `json:"link_text"`
-	LineNumber int    `json:"line_number"`
-	Resolved   bool   `json:"resolved"`
-	TargetPath string `json:"target_path,omitempty"`
+	Kind          string `json:"kind"`
+	TargetRaw     string `json:"target_raw"`
+	TargetHeading string `json:"target_heading,omitempty"`
+	LinkText      string `json:"link_text"`
+	LineNumber    int    `json:"line_number"`
+	Resolved      bool   `json:"resolved"`
+	TargetPath    string `json:"target_path,omitempty"`
 }
 
 type Tag struct {

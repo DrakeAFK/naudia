@@ -87,8 +87,11 @@ naudia rollback 1
 - `naudia project "<name>"`
 - `naudia links`
 - `naudia tasks`
+- `naudia decisions`
+- `naudia questions`
 - `naudia structure`
 - `naudia templates`
+- `naudia doctor`
 - `naudia proposals`
 - `naudia show <proposal-id>`
 - `naudia apply <proposal-id|all>`
@@ -103,12 +106,15 @@ All output supports the global `--json`, `--markdown`, and `--output` flags wher
 
 Naudia writes through proposals. Proposal actions are structured, stale-hash checked, and recorded as change rows with previous content, applied content, forward patch, inverse patch, affected ranges, and anchors.
 
+Before mutating a file, Naudia also writes an apply journal entry to `.naudia/changes/` and `apply_journal` in SQLite. If a file write succeeds but later bookkeeping fails, rollback metadata still exists outside the changed note.
+
 Rollback order:
 
 1. Clean rollback if the current file still matches Naudia's applied hash.
 2. Strict inverse patch or anchor replacement when the file drifted but Naudia's edited section is still exact.
-3. Conflict artifact when rollback is ambiguous.
-4. Full restore only with `--force` or when the file is unchanged since apply.
+3. Conservative three-way rollback when the applied block is still present exactly inside a drifted file.
+4. Conflict artifact when rollback is ambiguous.
+5. Full restore only with `--force` or when the file is unchanged since apply.
 
 Conflict artifacts are written to `.naudia/conflicts/`.
 
@@ -156,4 +162,3 @@ Core packages:
 ## Privacy
 
 Naudia reads Markdown files from the configured vault, writes only after approval, stores local metadata in `.naudia/`, and uses local Ollama models. It does not upload notes and does not include telemetry.
-

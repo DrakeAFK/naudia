@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakeafk/naudia/internal/ai"
 	"github.com/drakeafk/naudia/internal/contextpack"
 	"github.com/drakeafk/naudia/internal/obsidian"
 	"github.com/drakeafk/naudia/internal/proposals"
@@ -36,6 +37,9 @@ func (r Runner) Daily(ctx context.Context, dateText string, showContext bool) (D
 	if err != nil {
 		return DailyResult{}, err
 	}
+	if aiReview, err := r.aiDaily(ctx, dateText, source, content, pack); err == nil && strings.TrimSpace(aiReview) != "" {
+		review = aiReview
+	}
 	appendSection := "\n## Naudia Review\n\n" + review + "\n"
 	proposal := &proposals.Proposal{
 		Type:    proposals.TypeDailyDistillation,
@@ -57,6 +61,106 @@ func (r Runner) Daily(ctx context.Context, dateText string, showContext bool) (D
 		CreatedAt: time.Now().UTC(),
 	}
 	return DailyResult{Date: dateText, SourceNote: source, Review: review, Context: pack, Proposal: proposal}, nil
+}
+
+func (r Runner) aiDaily(ctx context.Context, dateText, source, content string, pack contextpack.Pack) (string, error) {
+	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
+		return "", fmt.Errorf("ollama unavailable")
+	}
+	prompt := ai.DailyPrompt + "\n\nDaily note path: " + source + "\nDaily note content:\n" + content + "\n\nContext pack:\n" + contextpack.Render(pack)
+	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{
+			{Role: "system", Content: ai.SystemPrompt},
+			{Role: "user", Content: prompt},
+		},
+		Temperature: 0.1,
+		Format:      "json",
+	})
+	if err != nil {
+		return "", err
+	}
+	var out aiDailyOutput
+	if err := ai.DecodeJSON(ctx, r.AI, resp.Content, &out); err != nil {
+		return "", err
+	}
+	if out.Date == "" {
+		out.Date = dateText
+	}
+	if out.SourceNote == "" {
+		out.SourceNote = source
+	}
+	return renderAIDaily(out), nil
+}
+
+func renderAIDaily(out aiDailyOutput) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Daily Review - %s\n\n", out.Date)
+	fmt.Fprintf(&b, "Source: %s\n\n", out.SourceNote)
+	writeSection(&b, "Summary", bulletOrFallback([]string{out.Summary}, "No summary was produced from the provided context."))
+	writeSection(&b, "Decisions", prefixBullets(out.Decisions))
+	var tasks []string
+	for _, task := range out.Tasks {
+		if strings.TrimSpace(task.Text) == "" {
+			continue
+		}
+		label := "explicit"
+		if !task.Explicit {
+			label = "inferred"
+		}
+		project := ""
+		if task.ProjectGuess != "" {
+			project = " [" + task.ProjectGuess + "]"
+		}
+		tasks = append(tasks, "- [ ] "+task.Text+" ("+label+")"+project)
+	}
+	writeSection(&b, "Tasks", tasks)
+	var updates []string
+	for _, update := range out.ProjectUpdates {
+		line := strings.TrimSpace(update.Update)
+		if line == "" {
+			continue
+		}
+		if update.Project != "" {
+			line = update.Project + ": " + line
+		}
+		updates = append(updates, "- "+line)
+	}
+	writeSection(&b, "Project Updates", updates)
+	writeSection(&b, "Ideas Worth Keeping", prefixBullets(out.IdeasWorthKeeping))
+	var notes []string
+	for _, note := range out.NotesToCreate {
+		if strings.TrimSpace(note.Title) == "" {
+			continue
+		}
+		notes = append(notes, "- "+note.Title+": "+note.Reason)
+	}
+	writeSection(&b, "Notes to Create", notes)
+	writeSection(&b, "Carry Forward", prefixBullets(out.CarryForward))
+	return strings.TrimSpace(b.String()) + "\n"
+}
+
+func prefixBullets(items []string) []string {
+	var out []string
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if strings.HasPrefix(item, "- ") || strings.HasPrefix(item, "- [") {
+			out = append(out, item)
+		} else {
+			out = append(out, "- "+item)
+		}
+	}
+	return out
+}
+
+func bulletOrFallback(items []string, fallback string) []string {
+	items = prefixBullets(items)
+	if len(items) == 0 {
+		return []string{"- " + fallback}
+	}
+	return items
 }
 
 func buildDailyReview(dateText, source string, note vault.Note) string {

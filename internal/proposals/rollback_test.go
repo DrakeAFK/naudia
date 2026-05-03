@@ -110,6 +110,29 @@ func TestRollbackSameSectionManualEditCreatesConflict(t *testing.T) {
 	}
 }
 
+func TestThreeWayRollbackPreservesUnrelatedEdit(t *testing.T) {
+	base := "alpha\nold\nomega\n"
+	applied := "alpha\nnew\nomega\n"
+	current := "manual\nalpha\nnew\nomega\n"
+	got, ok := threeWayRollback(base, applied, current)
+	if !ok {
+		t.Fatal("three-way rollback failed")
+	}
+	want := "manual\nalpha\nold\nomega\n"
+	if got != want {
+		t.Fatalf("three-way rollback = %q, want %q", got, want)
+	}
+}
+
+func TestThreeWayRollbackConflictsOnSameLineEdit(t *testing.T) {
+	base := "alpha\nold\nomega\n"
+	applied := "alpha\nnew\nomega\n"
+	current := "alpha\nnew plus manual\nomega\n"
+	if got, ok := threeWayRollback(base, applied, current); ok {
+		t.Fatalf("three-way rollback should conflict, got %q", got)
+	}
+}
+
 func testManager(t *testing.T, ctx context.Context) (string, Manager) {
 	t.Helper()
 	root := t.TempDir()

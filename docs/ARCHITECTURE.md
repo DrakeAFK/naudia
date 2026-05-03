@@ -13,11 +13,12 @@ Naudia is organized around local, reversible operations.
 7. `internal/ui` renders premium CLI and TUI surfaces.
 8. `internal/cli` wires Cobra commands.
 
-## Rollback
+## Apply And Rollback
 
-Rollback never blindly restores a full file after drift. If the current file still matches the applied hash, Naudia can safely restore the previous content. If the file drifted, Naudia attempts strict inverse patch and anchor-based replacement only when the section Naudia changed still matches exactly. If that is ambiguous, it writes a conflict artifact and leaves the file untouched.
+Naudia journals planned changes before mutating files. The journal is stored both in SQLite and under `.naudia/changes/`, so rollback metadata survives a bookkeeping failure after a file write.
+
+Rollback never blindly restores a full file after drift. If the current file still matches the applied hash, Naudia can safely restore the previous content. If the file drifted, Naudia attempts strict inverse patch, anchor-based replacement, and conservative three-way rollback only when the applied block still exists exactly. If that is ambiguous, it writes a conflict artifact and leaves the file untouched.
 
 ## sqlite-vec
 
 The migration `002_vec.sql` attempts to create a `vec0` table. If the extension is not available in the local SQLite runtime, Naudia skips the virtual table and continues with keyword search plus Go cosine search over locally stored embedding JSON. Core indexing and proposals do not depend on sqlite-vec availability.
-

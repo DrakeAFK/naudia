@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakeafk/naudia/internal/ai"
+	"github.com/drakeafk/naudia/internal/contextpack"
 	"github.com/drakeafk/naudia/internal/obsidian"
 	"github.com/drakeafk/naudia/internal/proposals"
 )
@@ -84,6 +86,9 @@ func (r Runner) Links(ctx context.Context, noteFilter, folder string) (LinksResu
 			break
 		}
 	}
+	if aiSuggestions, err := r.aiLinks(ctx, suggestions); err == nil {
+		suggestions = mergeLinkSuggestions(suggestions, aiSuggestions)
+	}
 	var proposal *proposals.Proposal
 	if len(actions) > 0 {
 		sourceNotes := make([]proposals.SourceNote, 0, len(suggestions))
@@ -110,6 +115,62 @@ func (r Runner) Links(ctx context.Context, noteFilter, folder string) (LinksResu
 		}
 	}
 	return LinksResult{Suggestions: suggestions, Proposal: proposal}, nil
+}
+
+func (r Runner) aiLinks(ctx context.Context, deterministic []LinkSuggestion) ([]LinkSuggestion, error) {
+	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
+		return nil, fmt.Errorf("ollama unavailable")
+	}
+	pack, err := r.BuildContext(ctx, "missing links backlinks related notes orphan notes", "links")
+	if err != nil {
+		return nil, err
+	}
+	var b strings.Builder
+	for _, s := range deterministic {
+		fmt.Fprintf(&b, "- %s -> %s line %d: %s\n", s.SourceNote, s.TargetNote, s.LineNumber, s.Reason)
+	}
+	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{
+			{Role: "system", Content: ai.SystemPrompt},
+			{Role: "user", Content: ai.LinksPrompt + "\n\nDeterministic suggestions:\n" + b.String() + "\nContext pack:\n" + contextpack.Render(pack)},
+		},
+		Temperature: 0.1,
+		Format:      "json",
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out aiLinkOutput
+	if err := ai.DecodeJSON(ctx, r.AI, resp.Content, &out); err != nil {
+		return nil, err
+	}
+	var suggestions []LinkSuggestion
+	for _, s := range out.Suggestions {
+		if strings.TrimSpace(s.SourceNote) == "" || strings.TrimSpace(s.TargetNote) == "" {
+			continue
+		}
+		suggestions = append(suggestions, LinkSuggestion{
+			SourceNote: s.SourceNote,
+			TargetNote: s.TargetNote,
+			Reason:     nonEmpty(s.Reason, "AI suggested a conservative graph improvement from selected context."),
+			Confidence: nonEmpty(s.Confidence, "medium"),
+		})
+	}
+	return suggestions, nil
+}
+
+func mergeLinkSuggestions(base, extra []LinkSuggestion) []LinkSuggestion {
+	seen := map[string]bool{}
+	out := make([]LinkSuggestion, 0, len(base)+len(extra))
+	for _, s := range append(base, extra...) {
+		key := strings.ToLower(s.SourceNote + "->" + s.TargetNote)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, s)
+	}
+	return out
 }
 
 func (r Runner) OrphanNotes(ctx context.Context) ([]string, error) {

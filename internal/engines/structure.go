@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakeafk/naudia/internal/ai"
+	"github.com/drakeafk/naudia/internal/contextpack"
 	"github.com/drakeafk/naudia/internal/proposals"
 )
 
@@ -31,6 +33,21 @@ func (r Runner) Structure(ctx context.Context, propose bool) (Report, *proposals
 	}
 	if len(root) > 0 {
 		report.Issues = append(report.Issues, Issue{Category: "Structure", Severity: "medium", Description: fmt.Sprintf("%d notes are at the vault root.", len(root)), SuggestedAction: "Move root capture notes into 00 Inbox after review."})
+	}
+	if aiStructure, err := r.aiStructure(ctx, report); err == nil {
+		if strings.TrimSpace(aiStructure.Summary) != "" {
+			report.Summary = aiStructure.Summary
+		}
+		for _, issue := range aiStructure.CurrentIssues {
+			if strings.TrimSpace(issue) != "" {
+				report.Issues = append(report.Issues, Issue{Category: "Structure", Severity: "low", Description: issue, SuggestedAction: "Review structure recommendations before creating move proposals."})
+			}
+		}
+		for _, rec := range aiStructure.RecommendedStructure {
+			if strings.TrimSpace(rec.Path) != "" {
+				report.Lines = append(report.Lines, fmt.Sprintf("Recommended %s: %s", rec.Path, rec.Purpose))
+			}
+		}
 	}
 	if !propose || len(root) == 0 {
 		return report, nil, nil
@@ -62,6 +79,32 @@ func (r Runner) Structure(ctx context.Context, propose bool) (Report, *proposals
 		CreatedAt:            time.Now().UTC(),
 	}
 	return report, proposal, nil
+}
+
+func (r Runner) aiStructure(ctx context.Context, deterministic Report) (aiStructureOutput, error) {
+	var out aiStructureOutput
+	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
+		return out, fmt.Errorf("ollama unavailable")
+	}
+	pack, err := r.BuildContext(ctx, "vault folder structure templates projects areas resources archive", "structure")
+	if err != nil {
+		return out, err
+	}
+	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{
+			{Role: "system", Content: ai.SystemPrompt},
+			{Role: "user", Content: ai.StructurePrompt + "\n\nDeterministic structure report:\n" + renderReportMarkdown(deterministic) + "\nContext pack:\n" + contextpack.Render(pack)},
+		},
+		Temperature: 0.1,
+		Format:      "json",
+	})
+	if err != nil {
+		return out, err
+	}
+	if err := ai.DecodeJSON(ctx, r.AI, resp.Content, &out); err != nil {
+		return out, err
+	}
+	return out, nil
 }
 
 func (r Runner) Templates(ctx context.Context, folder string) (Report, *proposals.Proposal, error) {

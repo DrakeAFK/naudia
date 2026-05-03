@@ -48,3 +48,17 @@ func TestResolveLinksUsesAlias(t *testing.T) {
 		t.Fatalf("link was not resolved through alias: %#v", notes[0].Links[0])
 	}
 }
+
+func TestResolveLinksRequiresExistingHeading(t *testing.T) {
+	notes := []Note{
+		ParseNote("A.md", "/tmp/A.md", "[[B#Real Heading]]\n[[B#Missing Heading]]"),
+		ParseNote("B.md", "/tmp/B.md", "# B\n\n## Real Heading\n"),
+	}
+	notes = ResolveLinks(notes)
+	if !notes[0].Links[0].Resolved || notes[0].Links[0].TargetHeading != "Real Heading" {
+		t.Fatalf("heading link should resolve: %#v", notes[0].Links[0])
+	}
+	if notes[0].Links[1].Resolved {
+		t.Fatalf("missing heading link should not resolve: %#v", notes[0].Links[1])
+	}
+}

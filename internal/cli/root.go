@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -62,8 +63,11 @@ func NewRootCommand() *cobra.Command {
 		projectCmd(),
 		linksCmd(),
 		tasksCmd(),
+		decisionsCmd(),
+		questionsCmd(),
 		structureCmd(),
 		templatesCmd(),
+		doctorCmd(),
 		proposalsCmd(),
 		showCmd(),
 		applyCmd(),
@@ -119,7 +123,7 @@ func initCmd() *cobra.Command {
 					vaultPath = rootOpts.vaultPath
 				} else {
 					wd, _ := os.Getwd()
-					vaultPath = wd
+					vaultPath = promptDefault(cmd, "Vault path", wd)
 				}
 			}
 			abs, err := filepath.Abs(vaultPath)
@@ -139,6 +143,9 @@ func initCmd() *cobra.Command {
 				cfg.Vault.Name = vaultName
 			} else {
 				cfg.Vault.Name = obsidian.DeriveVaultName(abs)
+				if isTerminalStdin() {
+					cfg.Vault.Name = promptDefault(cmd, "Vault name", cfg.Vault.Name)
+				}
 			}
 			if chatModel != "" {
 				cfg.Ollama.ChatModel = chatModel
@@ -163,9 +170,13 @@ func initCmd() *cobra.Command {
 				return err
 			}
 			ollama := "offline"
+			modelSummary := "unavailable"
 			client := ai.NewOllamaClient(cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel)
 			if err := client.HealthCheck(ctx); err == nil {
 				ollama = "online"
+				if models, err := client.ListModels(ctx); err == nil {
+					modelSummary = modelAvailability(models, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel)
+				}
 			}
 			cliStatus := "unavailable"
 			if obsidian.CLIAvailable(cfg.Obsidian.CLICommand) {
@@ -183,7 +194,9 @@ func initCmd() *cobra.Command {
 				{"Config", cfgPath},
 				{"Database", dbPath},
 				{"Ollama", ollama},
+				{"Models", modelSummary},
 				{"sqlite-vec", vectorStatus(store.VectorAvailable)},
+				{"Obsidian URI", enabledDisabled(cfg.Obsidian.UseURI)},
 				{"Obsidian CLI", cliStatus},
 			}))
 			return nil
@@ -215,9 +228,13 @@ func statusCmd() *cobra.Command {
 					cliStatus = "available"
 				}
 				if format(cmd) == "json" {
-					return writeJSON(cmd, map[string]any{"status": st, "ollama": ollamaStatus, "obsidian_cli": cliStatus})
+					return writeJSON(cmd, map[string]any{"status": st, "ollama": ollamaStatus, "obsidian_uri": a.Config.Obsidian.UseURI, "obsidian_cli": cliStatus})
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), ui.StatusCard(st, ollamaStatus, a.Config.Ollama.ChatModel, a.Config.Ollama.EmbeddingModel, cliStatus))
+				uriStatus := "disabled"
+				if a.Config.Obsidian.UseURI {
+					uriStatus = "enabled"
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), ui.StatusCard(st, ollamaStatus, a.Config.Ollama.ChatModel, a.Config.Ollama.EmbeddingModel, uriStatus, cliStatus))
 				return nil
 			})
 		},
@@ -600,6 +617,110 @@ func tasksCmd() *cobra.Command {
 	return cmd
 }
 
+func decisionsCmd() *cobra.Command {
+	var project string
+	var apply bool
+	cmd := &cobra.Command{
+		Use:   "decisions",
+		Short: "Extract sourced decisions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withApp(cmd, func(ctx context.Context, a *app.App) error {
+				_, _, _ = scanVault(ctx, a, scanOptions{NoEmbeddings: true})
+				r, err := runner(ctx, a)
+				if err != nil {
+					return err
+				}
+				report, prop, err := r.Decisions(ctx, project)
+				if err != nil {
+					return err
+				}
+				return writeReportAndMaybeProposal(cmd, ctx, a, report, prop, apply)
+			})
+		},
+	}
+	cmd.Flags().StringVar(&project, "project", "", "filter by project")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated proposal")
+	return cmd
+}
+
+func questionsCmd() *cobra.Command {
+	var project string
+	var apply bool
+	cmd := &cobra.Command{
+		Use:   "questions",
+		Short: "Extract unresolved questions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withApp(cmd, func(ctx context.Context, a *app.App) error {
+				_, _, _ = scanVault(ctx, a, scanOptions{NoEmbeddings: true})
+				r, err := runner(ctx, a)
+				if err != nil {
+					return err
+				}
+				report, prop, err := r.Questions(ctx, project)
+				if err != nil {
+					return err
+				}
+				return writeReportAndMaybeProposal(cmd, ctx, a, report, prop, apply)
+			})
+		},
+	}
+	cmd.Flags().StringVar(&project, "project", "", "filter by project")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated proposal")
+	return cmd
+}
+
+func doctorCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "doctor",
+		Short: "Check Naudia environment health",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withApp(cmd, func(ctx context.Context, a *app.App) error {
+				r, err := runner(ctx, a)
+				if err != nil {
+					return err
+				}
+				report, err := r.Doctor(ctx)
+				if err != nil {
+					return err
+				}
+				if format(cmd) == "json" {
+					return writeJSON(cmd, report)
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), ui.ReportView(report))
+				return nil
+			})
+		},
+	}
+}
+
+func writeReportAndMaybeProposal(cmd *cobra.Command, ctx context.Context, a *app.App, report engines.Report, prop *proposals.Proposal, apply bool) error {
+	var id int64
+	if prop != nil {
+		pm, err := proposalManager(ctx, a)
+		if err != nil {
+			return err
+		}
+		var saveErr error
+		id, saveErr = pm.Save(ctx, prop)
+		if saveErr != nil {
+			return saveErr
+		}
+		if apply {
+			if _, err := pm.Apply(ctx, id); err != nil {
+				return err
+			}
+		}
+	}
+	if format(cmd) == "json" {
+		return writeJSON(cmd, map[string]any{"report": report, "proposal_id": id})
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), ui.ReportView(report))
+	if id > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "\nProposal %d prepared.\n", id)
+	}
+	return nil
+}
+
 func structureCmd() *cobra.Command {
 	var propose, apply, interactive bool
 	cmd := &cobra.Command{
@@ -784,6 +905,9 @@ func applyCmd() *cobra.Command {
 							return fmt.Errorf("proposal %d was not confirmed", id)
 						}
 					}
+					if git := util.GitStatusForPath(a.Config.Vault.Path); git.InRepo && git.Dirty && (p.RiskLevel == proposals.RiskHigh || len(p.Actions) > 5) {
+						fmt.Fprintln(cmd.OutOrStdout(), ui.ErrorCard("Git Working Tree Has Changes", "Naudia detected existing Git changes before applying this proposal.", "Review `git status --short` if this proposal touches many files."))
+					}
 					result, err := pm.Apply(ctx, id)
 					if err != nil {
 						return err
@@ -937,6 +1061,54 @@ func writeJSON(cmd *cobra.Command, v any) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
 	return enc.Encode(v)
+}
+
+func promptDefault(cmd *cobra.Command, label, fallback string) string {
+	if !isTerminalStdin() {
+		return fallback
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "%s [%s]: ", label, fallback)
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return fallback
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return fallback
+	}
+	return line
+}
+
+func isTerminalStdin() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func modelAvailability(models []string, chatModel, embeddingModel string) string {
+	available := map[string]bool{}
+	for _, model := range models {
+		available[model] = true
+	}
+	chat := "missing"
+	if available[chatModel] {
+		chat = "available"
+	}
+	embedding := "missing"
+	if available[embeddingModel] {
+		embedding = "available"
+	}
+	return fmt.Sprintf("%s: %s, %s: %s", chatModel, chat, embeddingModel, embedding)
+}
+
+func enabledDisabled(v bool) string {
+	if v {
+		return "enabled"
+	}
+	return "disabled"
 }
 
 func riskMessage(p *proposals.Proposal, yes bool) string {

@@ -157,6 +157,9 @@ func (m Manager) rollbackContent(change Change, force bool) error {
 	if patched, ok := rollbackByAnchors(change, current); ok {
 		return util.WriteFileAtomic(full, []byte(patched), 0o644)
 	}
+	if patched, ok := threeWayRollback(change.PreviousContent, change.AppliedContent, current); ok {
+		return util.WriteFileAtomic(full, []byte(patched), 0o644)
+	}
 	return util.Wrap(util.ErrConflict, "file drift overlaps Naudia change: %s", change.NotePath)
 }
 
@@ -198,6 +201,76 @@ func rollbackByAnchors(change Change, current string) (string, bool) {
 		result = strings.Replace(result, after, before, 1)
 	}
 	return result, true
+}
+
+func threeWayRollback(base, applied, current string) (string, bool) {
+	if base == applied {
+		return current, true
+	}
+	prefix := commonPrefixLen(base, applied)
+	suffix := commonSuffixLen(base[prefix:], applied[prefix:])
+	start := lineStart(applied, prefix)
+	endApplied := lineEnd(applied, len(applied)-suffix)
+	endBase := lineEnd(base, len(base)-suffix)
+	if start < prefix {
+		prefix = start
+	}
+	appliedChanged := applied[prefix:endApplied]
+	baseChanged := base[prefix:endBase]
+	if appliedChanged == "" {
+		return "", false
+	}
+	if strings.Count(current, appliedChanged) != 1 {
+		return "", false
+	}
+	return strings.Replace(current, appliedChanged, baseChanged, 1), true
+}
+
+func lineStart(s string, idx int) int {
+	if idx > len(s) {
+		idx = len(s)
+	}
+	for idx > 0 && s[idx-1] != '\n' {
+		idx--
+	}
+	return idx
+}
+
+func lineEnd(s string, idx int) int {
+	if idx > len(s) {
+		idx = len(s)
+	}
+	for idx < len(s) && s[idx] != '\n' {
+		idx++
+	}
+	if idx < len(s) {
+		idx++
+	}
+	return idx
+}
+
+func commonPrefixLen(a, b string) int {
+	max := len(a)
+	if len(b) < max {
+		max = len(b)
+	}
+	i := 0
+	for i < max && a[i] == b[i] {
+		i++
+	}
+	return i
+}
+
+func commonSuffixLen(a, b string) int {
+	max := len(a)
+	if len(b) < max {
+		max = len(b)
+	}
+	i := 0
+	for i < max && a[len(a)-1-i] == b[len(b)-1-i] {
+		i++
+	}
+	return i
 }
 
 func changeFromRecord(rec db.ChangeRecord) (Change, error) {

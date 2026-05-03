@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drakeafk/naudia/internal/ai"
+	"github.com/drakeafk/naudia/internal/contextpack"
 	"github.com/drakeafk/naudia/internal/obsidian"
 	"github.com/drakeafk/naudia/internal/proposals"
 	"github.com/drakeafk/naudia/internal/util"
@@ -115,6 +117,22 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 			fmt.Sprintf("Open tasks: %d", openTasks),
 		},
 	}
+	if !noAI {
+		if aiReport, err := r.aiReview(ctx, report); err == nil {
+			if strings.TrimSpace(aiReport.Summary) != "" {
+				report.Summary = aiReport.Summary
+			}
+			for _, issue := range aiReport.Issues {
+				report.Issues = append(report.Issues, Issue{
+					Category:        nonEmpty(issue.Category, "AI Review"),
+					Severity:        nonEmpty(issue.Severity, "low"),
+					Description:     issue.Description,
+					SourceNotes:     issue.SourceNotes,
+					SuggestedAction: issue.SuggestedAction,
+				})
+			}
+		}
+	}
 	report.ReportPath = r.writeReport("vault-review", renderReportMarkdown(report))
 	var generated []*proposals.Proposal
 	content := renderReportMarkdown(report)
@@ -138,6 +156,33 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 		CreatedAt: time.Now().UTC(),
 	})
 	return report, generated, nil
+}
+
+func (r Runner) aiReview(ctx context.Context, deterministic Report) (aiReviewOutput, error) {
+	var out aiReviewOutput
+	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
+		return out, fmt.Errorf("ollama unavailable")
+	}
+	pack, err := r.BuildContext(ctx, "vault review structure tasks links templates unresolved questions", "structure")
+	if err != nil {
+		return out, err
+	}
+	prompt := "Deterministic review:\n" + renderReportMarkdown(deterministic) + "\n\nContext pack:\n" + contextpack.Render(pack) + "\n\n" + ai.ReviewPrompt
+	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
+		Messages: []ai.Message{
+			{Role: "system", Content: ai.SystemPrompt},
+			{Role: "user", Content: prompt},
+		},
+		Temperature: 0.1,
+		Format:      "json",
+	})
+	if err != nil {
+		return out, err
+	}
+	if err := ai.DecodeJSON(ctx, r.AI, resp.Content, &out); err != nil {
+		return out, err
+	}
+	return out, nil
 }
 
 func (r Runner) writeReport(prefix, content string) string {
@@ -173,4 +218,11 @@ func readVaultFile(root, rel string) (string, string, error) {
 		return "", "", err
 	}
 	return string(data), util.SHA256Bytes(data), nil
+}
+
+func nonEmpty(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }

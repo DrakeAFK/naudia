@@ -1,18 +1,16 @@
-PLAN.md — Naudia
+# Project Name
 
-Project Name
+**Naudia**
 
-Naudia
-
-Pronunciation: nod-ee-uh
+Pronunciation: **nod-ee-uh**
 
 Naudia is a local-first AI operator for Obsidian.
 
-One-Line Description
+# One-Line Description
 
 Naudia is a local-first AI steward for Obsidian that uses Ollama, SQLite, sqlite-vec, Obsidian URI links, optional Obsidian CLI integration, conservative context budgeting, and safe reviewable diffs to inspect, organize, connect, distill, and update a user’s vault.
 
-Product Vision
+# Product Vision
 
 Naudia should feel like a calm, capable local operator for an Obsidian vault.
 
@@ -26,6 +24,7 @@ Naudia is a CLI-first AI operator that can inspect a vault, understand its struc
 
 The user should be able to run commands like:
 
+```
 naudia review
 naudia daily
 naudia project "My App"
@@ -35,36 +34,37 @@ naudia tasks
 naudia templates
 naudia apply 3
 naudia rollback 3
+```
 
 And Naudia should inspect the vault, reason over the contents locally, propose improvements, and mutate the vault only after approval.
 
 The long-term goal is for Naudia to become a local AI command center for Obsidian. Since Obsidian is open, Markdown-based, and extensible, Naudia can be as small or as powerful as the user wants.
 
-Core Product Promise
+# Core Product Promise
 
-Naudia helps your Obsidian vault maintain itself.
+**Naudia helps your Obsidian vault maintain itself.**
 
-Preferred Tagline
+# Preferred Tagline
 
-Naudia — your local AI steward for Obsidian.
+**Naudia — your local AI steward for Obsidian.**
 
 Other acceptable tagline options:
 
-Naudia — a local-first AI operator for your Obsidian vault.
+**Naudia — a local-first AI operator for your Obsidian vault.**
 
-Naudia — a private AI assistant that helps your Obsidian vault stay clean, connected, and useful.
+**Naudia — a private AI assistant that helps your Obsidian vault stay clean, connected, and useful.**
 
-Core Differentiation
+# Core Differentiation
 
 Most AI note tools focus on this:
 
-Chat with your notes.
+> Chat with your notes.
 
 Naudia should focus on this:
 
-Do useful work inside your vault.
+> Do useful work inside your vault.
 
-Naudia should be positioned as an operator, not a chatbot.
+Naudia should be positioned as an **operator**, not a chatbot.
 
 It should be able to:
 
@@ -83,7 +83,7 @@ It should be able to:
 * Run fully local through Ollama
 * Use semantic search without overstuffing local model prompts
 
-Operator Pattern
+# Operator Pattern
 
 The README should explicitly explain this.
 
@@ -125,7 +125,7 @@ Core words to emphasize:
 
 Suggested README section:
 
-Why Naudia is not just another RAG chatbot
+# Why Naudia is not just another RAG chatbot
 
 Most AI note tools let you ask questions about your notes.
 
@@ -142,9 +142,9 @@ Naudia is built around four core ideas:
 * Rollbacks over blind edits
 * Deterministic structure before AI judgment
 
-Design Principles
+# Design Principles
 
-1. Local-first
+# 1. Local-first
 
 Notes stay local.
 
@@ -158,7 +158,7 @@ No external API keys required.
 
 No telemetry in the initial version.
 
-2. Obsidian remains the source of truth
+# 2. Obsidian remains the source of truth
 
 Naudia does not replace Obsidian.
 
@@ -166,7 +166,7 @@ Naudia operates on the user’s existing vault.
 
 The vault remains normal Markdown.
 
-3. Proposal-first editing
+# 3. Proposal-first editing
 
 Naudia should not silently mutate notes.
 
@@ -174,7 +174,7 @@ All meaningful changes must be represented as proposals.
 
 The user can review, apply, reject, and roll back changes.
 
-4. Diffs over magic
+# 4. Diffs over magic
 
 The primary trust mechanism is the diff.
 
@@ -182,7 +182,7 @@ Naudia should not say “I improved your vault” in a vague way.
 
 It should show exactly what it wants to change.
 
-5. Rollbacks are mandatory
+# 5. Rollbacks are mandatory
 
 Every applied proposal should create rollback information.
 
@@ -190,7 +190,7 @@ The user should feel safe letting Naudia operate.
 
 Rollback must be robust enough to preserve unrelated manual edits whenever possible.
 
-6. Deterministic first, AI second
+# 6. Deterministic first, AI second
 
 Naudia should use deterministic parsing and rules wherever possible.
 
@@ -198,7 +198,7 @@ AI should enhance judgment, summarization, classification, and drafting.
 
 AI should not be required for basic vault scanning, indexing, or structural analysis.
 
-7. Conservative context by default
+# 7. Conservative context by default
 
 Local models can degrade when overloaded with loosely related context.
 
@@ -208,7 +208,7 @@ Semantic search should produce candidates, not final truth.
 
 Exact matches, explicit links, tags, and folder proximity should outrank vector similarity by default.
 
-8. Premium terminal experience
+# 8. Premium terminal experience
 
 The terminal output cannot look like a raw script.
 
@@ -227,7 +227,7 @@ The CLI should have a minimalist, structural aesthetic.
 
 Use the Charmbracelet ecosystem.
 
-9. No AI slop
+# 9. No AI slop
 
 Do not create generic filler notes.
 
@@ -237,7 +237,7 @@ Preserve the user’s voice unless asked to rewrite.
 
 Source important suggestions from actual vault content.
 
-10. Seamless Obsidian bridge
+# 10. Seamless Obsidian bridge
 
 Naudia should not feel disconnected from Obsidian.
 
@@ -245,21 +245,27 @@ When Naudia references a note, it should provide an Obsidian URI link when possi
 
 Example:
 
+```
 obsidian://open?vault=Main&file=Projects/Naudia.md
+```
 
 In supported terminals, this should appear as a clickable link.
 
-11. Frictionless installation
+# 11. Frictionless installation
 
 The project should be easy to install.
 
 Target install methods:
 
+```
 brew install drakeafk/naudia/naudia
+```
 
 And:
 
+```
 curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
+```
 
 Also provide GitHub Releases with binaries for:
 
@@ -269,7 +275,7 @@ Also provide GitHub Releases with binaries for:
 * Linux arm64
 * Windows amd64
 
-Intended Audience
+# Intended Audience
 
 Naudia should be useful for everyone who uses Obsidian, including:
 
@@ -286,7 +292,7 @@ Naudia should be useful for everyone who uses Obsidian, including:
 
 The first implementation should be especially strong for technical users because GitHub stars will likely come from developers first.
 
-Non-Goals for Initial Version
+# Non-Goals for Initial Version
 
 Do not start with:
 
@@ -303,9 +309,9 @@ Do not start with:
 
 Naudia should begin as a polished CLI/TUI tool.
 
-Recommended Tech Stack
+# Recommended Tech Stack
 
-Use Go.
+Use **Go**.
 
 Recommended stack:
 
@@ -328,7 +334,7 @@ Recommended stack:
 * Packaging: GoReleaser
 * Distribution: Homebrew tap, install script, GitHub Releases
 
-Why Go
+# Why Go
 
 Naudia should use Go because:
 
@@ -340,10 +346,11 @@ Naudia should use Go because:
 * GoReleaser makes multi-platform releases and Homebrew taps straightforward.
 * A fast, local, boring-but-effective CLI is exactly the kind of tool developers like to star.
 
-Repository Structure
+# Repository Structure
 
 Use this structure:
 
+```
 naudia/
   README.md
   PLAN.md
@@ -351,13 +358,16 @@ naudia/
   go.mod
   go.sum
   .goreleaser.yaml
+
   cmd/
     naudia/
       main.go
+
   internal/
     app/
       app.go
       version.go
+
     cli/
       root.go
       init.go
@@ -376,6 +386,7 @@ naudia/
       reject.go
       rollback.go
       ask.go
+
     tui/
       theme.go
       layout.go
@@ -388,15 +399,18 @@ naudia/
       confirm.go
       context.go
       conflict.go
+
     config/
       config.go
       defaults.go
       validate.go
+
     obsidian/
       vault.go
       uri.go
       cli.go
       paths.go
+
     vault/
       scanner.go
       parser.go
@@ -408,6 +422,7 @@ naudia/
       headings.go
       files.go
       ignore.go
+
     db/
       db.go
       migrate.go
@@ -426,6 +441,7 @@ naudia/
         proposals.go
         changes.go
         conflicts.go
+
     ai/
       ollama.go
       chat.go
@@ -441,6 +457,7 @@ naudia/
         templates.go
       context.go
       chunking.go
+
     context/
       budget.go
       item.go
@@ -448,10 +465,12 @@ naudia/
       dedupe.go
       pack.go
       render.go
+
     vector/
       sqlite_vec.go
       similarity.go
       search.go
+
     engines/
       review.go
       daily.go
@@ -460,6 +479,7 @@ naudia/
       tasks.go
       structure.go
       templates.go
+
     proposals/
       proposal.go
       action.go
@@ -470,19 +490,23 @@ naudia/
       conflict.go
       render.go
       validate.go
+
     output/
       console.go
       markdown.go
       json.go
       table.go
+
     util/
       hash.go
       dates.go
       logger.go
       errors.go
       fs.go
+
   scripts/
     install.sh
+
   testdata/
     sample-vault/
       Daily/
@@ -490,10 +514,12 @@ naudia/
       Templates/
       Ideas/
       Resources/
+
   tests/
     integration/
+```
 
-Premium Terminal Interface Requirements
+# Premium Terminal Interface Requirements
 
 Naudia should not output plain walls of text.
 
@@ -506,7 +532,7 @@ Use Charmbracelet:
 * Bubbles for lists, spinners, text inputs, progress, and viewport
 * Glamour for Markdown rendering
 
-Visual Style
+# Visual Style
 
 Aim for:
 
@@ -527,7 +553,7 @@ Avoid:
 * Raw JSON unless requested
 * Dense unformatted logs
 
-Suggested Theme
+# Suggested Theme
 
 Use a restrained palette:
 
@@ -541,10 +567,11 @@ Use a restrained palette:
 
 The product should look good in both dark and light terminals.
 
-Layout Examples
+# Layout Examples
 
 Status card:
 
+```
 ╭─ Naudia Status ─────────────────────────────╮
 │ Vault          Main                         │
 │ Notes          1,284                        │
@@ -555,9 +582,11 @@ Status card:
 │ Vector search  sqlite-vec enabled           │
 │ Proposals      4 pending                    │
 ╰─────────────────────────────────────────────╯
+```
 
 Review summary:
 
+```
 ╭─ Vault Review ──────────────────────────────╮
 │ Naudia reviewed 1,284 notes.                │
 │                                             │
@@ -565,25 +594,31 @@ Review summary:
 │ Risk         Low                            │
 │ Proposals    12 prepared                    │
 ╰─────────────────────────────────────────────╯
+
 Structure
   • 47 notes are uncategorized
   • 12 project notes appear outside Projects/
   • 8 templates are inconsistent
+
 Daily Notes
   • 21 daily notes contain unresolved tasks
   • 9 daily notes contain reusable project knowledge
+```
 
 Proposal list:
 
+```
 ╭─ Pending Proposals ─────────────────────────╮
 │ 1  Create Projects/Naudia/PLAN.md     low   │
 │ 2  Add missing links to 8 notes       low   │
 │ 3  Move 14 notes into Projects/       high  │
 │ 4  Improve Templates/Project.md       med   │
 ╰─────────────────────────────────────────────╯
+```
 
 Rollback conflict:
 
+```
 ╭─ Rollback Conflict ─────────────────────────╮
 │ Naudia could not safely roll back proposal 3│
 │ for this file:                              │
@@ -597,30 +632,37 @@ Rollback conflict:
 │ Conflict details were written to:           │
 │ .naudia/conflicts/proposal-3.json           │
 ╰─────────────────────────────────────────────╯
+```
 
 Diff viewer should be clean and scrollable in interactive mode.
 
-Output Modes
+# Output Modes
 
 Default:
 
+```
 pretty
+```
 
 Supported:
 
+```
 pretty
 json
 markdown
 quiet
+```
 
 Examples:
 
+```
 naudia review
 naudia review --json
 naudia review --markdown
 naudia scan --quiet
+```
 
-Interactive and Non-Interactive Modes
+# Interactive and Non-Interactive Modes
 
 Naudia should support both scriptable CLI behavior and interactive TUI behavior.
 
@@ -628,54 +670,68 @@ Default commands can print beautiful static output.
 
 For complex review/apply flows, support interactive mode:
 
+```
 naudia proposals --interactive
 naudia review --interactive
 naudia apply 3 --interactive
+```
 
 Non-interactive mode must still work:
 
+```
 naudia apply 3 --yes
 naudia review --json
+```
 
-Configuration
+# Configuration
 
 Naudia should support global and vault-local configuration.
 
 Global config:
 
+```
 ~/.config/naudia/config.toml
+```
 
 Vault-local config:
 
+```
 <vault>/.naudia/config.toml
+```
 
 Vault-local config should override global config where appropriate.
 
 Suggested config:
 
+```
 [ollama]
 host = "http://localhost:11434"
 chat_model = "llama3.1:8b"
 embedding_model = "nomic-embed-text"
+
 [vault]
 path = "/Users/example/Documents/Obsidian/Main"
 name = "Main"
+
 [obsidian]
 use_uri = true
 use_cli = false
 cli_command = "obsidian"
+
 [behavior]
 approval_required = true
 write_mode = "proposal"
 max_files_per_proposal = 20
 source_citations = true
 allow_destructive_changes = false
+
 [index]
 database_path = ".naudia/naudia.sqlite"
 chunk_size = 1200
 chunk_overlap = 150
 use_embeddings = true
 vector_backend = "sqlite-vec"
+
 [context]
 max_notes = 8
 max_chunks = 16
@@ -686,14 +742,17 @@ min_similarity_threshold = 0.68
 include_full_notes = false
 prefer_headings = true
 recent_daily_note_days = 14
+
 [daily]
 folder = "Daily"
 date_format = "2006-01-02"
+
 [output]
 default_format = "pretty"
 use_color = true
 use_unicode = true
 terminal_links = true
+
 [ignore]
 patterns = [
   ".naudia/**",
@@ -701,11 +760,13 @@ patterns = [
   "node_modules/**",
   ".obsidian/workspace*"
 ]
+```
 
-Local Project Folder
+# Local Project Folder
 
 Inside each vault, Naudia should create:
 
+```
 .naudia/
   config.toml
   naudia.sqlite
@@ -714,14 +775,17 @@ Inside each vault, Naudia should create:
   conflicts/
   reports/
   logs/
+```
 
-Recommended .gitignore entry:
+Recommended `.gitignore` entry:
 
+```
 .naudia/
+```
 
 However, Naudia should not assume every vault is in Git.
 
-Obsidian Integration
+# Obsidian Integration
 
 Naudia should integrate with Obsidian in two ways:
 
@@ -732,58 +796,74 @@ The URI scheme should be treated as the more universal bridge.
 
 The Obsidian CLI can be used when available, but it should not be the only integration path.
 
-Obsidian URI Scheme
+# Obsidian URI Scheme
 
 Naudia should generate Obsidian URI links for notes wherever useful.
 
 Example:
 
+```
 obsidian://open?vault=Main&file=Projects/Naudia.md
+```
 
 When Naudia proposes a change to a specific note, output a clickable terminal link if terminal hyperlinks are enabled.
 
 Example display:
 
+```
 Projects/Naudia.md  open in Obsidian
+```
 
 The underlying link should be:
 
+```
 obsidian://open?vault=Main&file=Projects%2FNaudia.md
+```
 
 Implement URI helpers:
 
+```
 BuildOpenNoteURI(vaultName string, filePath string) string
 BuildSearchURI(vaultName string, query string) string
+```
 
 Naudia should URL-encode values correctly.
 
 Config should include vault name because Obsidian URIs require the vault name:
 
+```
 [vault]
 name = "Main"
+```
 
 If vault name is missing, derive it from the vault folder name but allow override.
 
-Terminal Hyperlinks
+# Terminal Hyperlinks
 
 If supported, output OSC 8 hyperlinks.
 
 Example concept:
 
+```
 \033]8;;obsidian://open?vault=Main&file=Projects%2FNaudia.md\033\\Projects/Naudia.md\033]8;;\033\\
+```
 
 Implement helper:
 
+```
 TerminalLink(label string, url string) string
+```
 
 Make this configurable:
 
+```
 [output]
 terminal_links = true
+```
 
 If disabled or unsupported, print the raw Obsidian URI below the path.
 
-Optional Obsidian CLI Integration
+# Optional Obsidian CLI Integration
 
 Naudia should detect whether the Obsidian CLI is available.
 
@@ -797,30 +877,37 @@ But initial core file operations should use direct filesystem access for reliabi
 
 Commands should not fail completely just because Obsidian CLI is unavailable, unless the specific command requires it.
 
-Ollama Integration
+# Ollama Integration
 
 Naudia should communicate with Ollama through HTTP.
 
 Default host:
 
+```
 http://localhost:11434
+```
 
 Implement:
 
+```
 OllamaClient
   ListModels()
   Chat()
   Generate()
   Embed()
   HealthCheck()
+```
 
 Naudia should verify Ollama during:
 
+```
 naudia init
 naudia status
+```
 
 If Ollama is unavailable, show a premium formatted error:
 
+```
 ╭─ Ollama Unavailable ────────────────────────╮
 │ Naudia could not reach Ollama at:           │
 │ http://localhost:11434                      │
@@ -831,28 +918,33 @@ If Ollama is unavailable, show a premium formatted error:
 │   ollama pull llama3.1:8b                   │
 │   ollama pull nomic-embed-text              │
 ╰─────────────────────────────────────────────╯
+```
 
-Recommended Default Models
+# Recommended Default Models
 
 Initial defaults:
 
+```
 Chat model: llama3.1:8b
 Embedding model: nomic-embed-text
+```
 
 Also support:
 
+```
 qwen2.5:7b
 mistral-nemo
 gemma3:12b
 mxbai-embed-large
+```
 
 Do not hardcode assumptions that a model exists.
 
 Always check.
 
-Vector Search
+# Vector Search
 
-Use sqlite-vec.
+Use **sqlite-vec**.
 
 sqlite-vec should be the preferred vector backend.
 
@@ -876,15 +968,17 @@ If sqlite-vec is unavailable, Naudia should degrade gracefully:
 
 Config:
 
+```
 [index]
 use_embeddings = true
 vector_backend = "sqlite-vec"
+```
 
-Data Model
+# Data Model
 
 Use SQLite.
 
-SQLite Extensions
+# SQLite Extensions
 
 The implementation should support loading sqlite-vec.
 
@@ -893,22 +987,27 @@ Depending on Go SQLite driver choice, the agent should research the cleanest imp
 Preferred behavior:
 
 * On startup, verify sqlite-vec availability.
-* On naudia status, show vector backend status.
-* On naudia scan, create vector tables if embeddings are enabled.
+* On `naudia status`, show vector backend status.
+* On `naudia scan`, create vector tables if embeddings are enabled.
 * If sqlite-vec cannot load, continue without semantic search.
 
 Status example:
 
+```
 Vector search  sqlite-vec enabled
+```
 
 or:
 
+```
 Vector search  unavailable; semantic suggestions disabled
+```
 
-Core Tables
+# Core Tables
 
-vaults
+# vaults
 
+```
 CREATE TABLE vaults (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -918,9 +1017,11 @@ CREATE TABLE vaults (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+```
 
-notes
+# notes
 
+```
 CREATE TABLE notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vault_id INTEGER NOT NULL,
@@ -935,9 +1036,11 @@ CREATE TABLE notes (
   FOREIGN KEY (vault_id) REFERENCES vaults(id),
   UNIQUE(vault_id, path)
 );
+```
 
-headings
+# headings
 
+```
 CREATE TABLE headings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   note_id INTEGER NOT NULL,
@@ -946,9 +1049,11 @@ CREATE TABLE headings (
   line_number INTEGER,
   FOREIGN KEY (note_id) REFERENCES notes(id)
 );
+```
 
-links
+# links
 
+```
 CREATE TABLE links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_note_id INTEGER NOT NULL,
@@ -960,18 +1065,22 @@ CREATE TABLE links (
   FOREIGN KEY (source_note_id) REFERENCES notes(id),
   FOREIGN KEY (target_note_id) REFERENCES notes(id)
 );
+```
 
-tags
+# tags
 
+```
 CREATE TABLE tags (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   note_id INTEGER NOT NULL,
   tag TEXT NOT NULL,
   FOREIGN KEY (note_id) REFERENCES notes(id)
 );
+```
 
-tasks
+# tasks
 
+```
 CREATE TABLE tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   note_id INTEGER NOT NULL,
@@ -984,9 +1093,11 @@ CREATE TABLE tasks (
   created_at TEXT NOT NULL,
   FOREIGN KEY (note_id) REFERENCES notes(id)
 );
+```
 
-chunks
+# chunks
 
+```
 CREATE TABLE chunks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   note_id INTEGER NOT NULL,
@@ -999,11 +1110,13 @@ CREATE TABLE chunks (
   FOREIGN KEY (note_id) REFERENCES notes(id),
   UNIQUE(note_id, chunk_index)
 );
+```
 
-embeddings metadata
+# embeddings metadata
 
 Use this table to track embedding metadata even if vector data lives in sqlite-vec virtual tables.
 
+```
 CREATE TABLE embeddings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   note_id INTEGER NOT NULL,
@@ -1016,8 +1129,9 @@ CREATE TABLE embeddings (
   FOREIGN KEY (chunk_id) REFERENCES chunks(id),
   UNIQUE(chunk_id, model)
 );
+```
 
-vector table
+# vector table
 
 Use sqlite-vec virtual table.
 
@@ -1025,12 +1139,15 @@ Exact schema may need to be adjusted based on sqlite-vec’s Go integration.
 
 Conceptual target:
 
+```
 CREATE VIRTUAL TABLE vec_chunks USING vec0(
   embedding float[768]
 );
+```
 
 Track mapping between vector row IDs and chunks:
 
+```
 CREATE TABLE vector_chunks (
   rowid INTEGER PRIMARY KEY,
   chunk_id INTEGER NOT NULL,
@@ -1040,11 +1157,13 @@ CREATE TABLE vector_chunks (
   FOREIGN KEY (chunk_id) REFERENCES chunks(id),
   FOREIGN KEY (note_id) REFERENCES notes(id)
 );
+```
 
 If sqlite-vec implementation details require a different shape, adapt while preserving the same logical relationship.
 
-proposals
+# proposals
 
+```
 CREATE TABLE proposals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vault_id INTEGER NOT NULL,
@@ -1060,38 +1179,50 @@ CREATE TABLE proposals (
   rolled_back_at TEXT,
   FOREIGN KEY (vault_id) REFERENCES vaults(id)
 );
+```
 
 Allowed proposal statuses:
 
+```
 pending
 applied
 rejected
 failed
 partially_applied
 rolled_back
+```
 
-changes
+# changes
 
+```
 CREATE TABLE changes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proposal_id INTEGER NOT NULL,
   action_id TEXT NOT NULL,
   note_path TEXT NOT NULL,
   action_kind TEXT NOT NULL,
+
   before_hash TEXT,
   after_hash TEXT,
+
   previous_content TEXT,
   applied_content TEXT,
+
   forward_patch TEXT,
   inverse_patch TEXT,
+
   affected_ranges_json TEXT,
   anchors_json TEXT,
+
   applied_at TEXT NOT NULL,
+
   FOREIGN KEY (proposal_id) REFERENCES proposals(id)
 );
+```
 
-rollback_conflicts
+# rollback_conflicts
 
+```
 CREATE TABLE rollback_conflicts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proposal_id INTEGER NOT NULL,
@@ -1100,17 +1231,19 @@ CREATE TABLE rollback_conflicts (
   reason TEXT NOT NULL,
   conflict_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
+
   FOREIGN KEY (proposal_id) REFERENCES proposals(id),
   FOREIGN KEY (change_id) REFERENCES changes(id)
 );
+```
 
-Context Budgeting and Local Model Discipline
+# Context Budgeting and Local Model Discipline
 
 Naudia must be highly conservative with context selection by default.
 
-Local models such as llama3.1:8b, qwen2.5:7b, and similar models can degrade quickly when overloaded with loosely related context. More context is not automatically better. Naudia should prioritize high-signal, source-grounded, minimal context over large prompt stuffing.
+Local models such as `llama3.1:8b`, `qwen2.5:7b`, and similar models can degrade quickly when overloaded with loosely related context. More context is not automatically better. Naudia should prioritize **high-signal, source-grounded, minimal context** over large prompt stuffing.
 
-Core Rule
+# Core Rule
 
 Naudia should retrieve less context by default and ask the model to reason over better context.
 
@@ -1132,8 +1265,9 @@ The system should avoid:
 * Treating vector similarity as proof of relevance
 * Overloading the model with loosely related context
 
-Default Context Limits
+# Default Context Limits
 
+```
 [context]
 max_notes = 8
 max_chunks = 16
@@ -1144,10 +1278,11 @@ min_similarity_threshold = 0.68
 include_full_notes = false
 prefer_headings = true
 recent_daily_note_days = 14
+```
 
 These values must be configurable.
 
-Context Selection Strategy
+# Context Selection Strategy
 
 For each AI command, Naudia should build a compact context pack.
 
@@ -1163,6 +1298,7 @@ A context pack should include:
 
 Internal model concept:
 
+```
 type ContextItem struct {
     NotePath        string
     ObsidianURI     string
@@ -1173,9 +1309,11 @@ type ContextItem struct {
     Score           float64
     CharCount       int
 }
+```
 
 Retrieval methods:
 
+```
 exact_title
 exact_path
 tag
@@ -1185,8 +1323,9 @@ text_search
 semantic
 recent_daily
 user_supplied
+```
 
-Context Ranking
+# Context Ranking
 
 Naudia should rank context before sending it to the model.
 
@@ -1203,7 +1342,7 @@ Preferred ranking order:
 
 Semantic matches should be treated as candidates, not authoritative sources.
 
-Context Deduplication
+# Context Deduplication
 
 Before sending context to the model, Naudia should deduplicate:
 
@@ -1220,49 +1359,55 @@ If two chunks overlap, prefer the one with:
 3. More useful heading context
 4. Shorter excerpt
 
-Command-Specific Context Limits
+# Command-Specific Context Limits
 
 Different commands should use different context budgets.
 
-naudia ask
+# `naudia ask`
 
 Can use slightly broader retrieval because it is read-only.
 
 Defaults:
 
+```
 max_notes = 10
 max_chunks = 20
 max_chars_total = 30000
+```
 
-naudia project
+# `naudia project`
 
 Should be conservative but allow enough context for project memory.
 
 Defaults:
 
+```
 max_notes = 12
 max_chunks = 24
 max_chars_total = 36000
+```
 
 Priority:
 
 1. Existing project folder
-2. Project README / PLAN / TODO / DECISIONS
+2. Project `README` / `PLAN` / `TODO` / `DECISIONS`
 3. Directly linked notes
 4. Recent daily mentions
 5. Semantic matches
 
-naudia daily
+# `naudia daily`
 
 Should usually only use the target daily note plus a small amount of project context.
 
 Defaults:
 
+```
 max_notes = 6
 max_chunks = 12
 max_chars_total = 18000
+```
 
-naudia links
+# `naudia links`
 
 Should use deterministic matching first.
 
@@ -1270,17 +1415,21 @@ Semantic context should be minimal.
 
 Defaults:
 
+```
 max_semantic_matches = 5
 max_chars_total = 12000
+```
 
-naudia structure
+# `naudia structure`
 
 Should mostly use metadata, not note bodies.
 
 Defaults:
 
+```
 include_full_notes = false
 max_chars_total = 12000
+```
 
 Use:
 
@@ -1293,13 +1442,15 @@ Use:
 
 Avoid sending full vault content.
 
-Context Preview
+# Context Preview
 
 Add flags that show which context would be sent to the model:
 
+```
 naudia project "Naudia" --show-context
 naudia daily --show-context
 naudia ask "What did I decide about naming?" --show-context
+```
 
 Output should include:
 
@@ -1312,7 +1463,7 @@ Output should include:
 
 This helps users trust the retrieval layer.
 
-Context Overflow Behavior
+# Context Overflow Behavior
 
 If the selected context exceeds the configured budget, Naudia should not blindly stuff the prompt.
 
@@ -1326,32 +1477,37 @@ It should:
 
 Example:
 
+```
 Context budget reached.
 Selected 16 of 43 candidate chunks.
 Dropped low-confidence semantic matches below 0.71 similarity.
+```
 
-Prompt Instruction
+# Prompt Instruction
 
 Add this behavior to AI prompts:
 
+```
 You are receiving a deliberately small context pack. Do not assume missing information. If the provided context is insufficient, say what is missing. Do not infer facts from weakly related notes.
+```
 
-Context Acceptance Criteria
+# Context Acceptance Criteria
 
 * Naudia never sends unlimited vault content to the model.
 * Naudia has conservative default context limits.
 * Context limits are configurable.
-* Context selection is explainable with --show-context.
+* Context selection is explainable with `--show-context`.
 * Semantic matches are treated as lower-priority candidates.
 * Large daily notes and project folders are excerpted by relevant heading where possible.
 * If context is insufficient, Naudia says so rather than hallucinating.
 
-Proposal Model
+# Proposal Model
 
 Every mutation should be represented as a proposal.
 
 Go model concept:
 
+```
 type Proposal struct {
     ID                   int64            `json:"id,omitempty"`
     Type                 ProposalType     `json:"type"`
@@ -1363,9 +1519,11 @@ type Proposal struct {
     RequiresConfirmation bool             `json:"requires_confirmation"`
     CreatedAt            time.Time        `json:"created_at"`
 }
+```
 
 Proposal types:
 
+```
 daily_distillation
 project_compile
 link_suggestions
@@ -1378,9 +1536,11 @@ note_create
 note_move
 note_rename
 note_delete
+```
 
 Proposal action kinds:
 
+```
 create_note
 update_note
 rename_note
@@ -1395,8 +1555,9 @@ remove_lines
 update_task_status
 add_frontmatter
 update_frontmatter
+```
 
-Proposal Safety Rules
+# Proposal Safety Rules
 
 Naudia must never perform destructive actions silently.
 
@@ -1410,40 +1571,49 @@ High-risk actions:
 * Modify more than 20 files
 * Modify templates
 * Modify files outside vault
-* Modify hidden folders other than .naudia
+* Modify hidden folders other than `.naudia`
 
 High-risk proposals should require explicit confirmation even if the user runs:
 
+```
 naudia apply all
+```
 
 For high-risk proposals, prompt:
 
+```
 This proposal may significantly change your vault.
+
 Type the proposal id to confirm:
+```
 
-Rollback System
+# Rollback System
 
-Use the term rollback rather than undo in product messaging.
+Use the term **rollback** rather than undo in product messaging.
 
 The command can be:
 
+```
 naudia rollback <proposal-id>
+```
 
 Also support alias:
 
+```
 naudia undo <proposal-id>
+```
 
 Naudia must not rely on naive full-file restoration for rollback except in carefully controlled cases.
 
-A user may apply a proposal, then manually edit a different section of the same file, then later ask Naudia to roll back the proposal. In that case, restoring previous_content would incorrectly wipe the user’s manual edits.
+A user may apply a proposal, then manually edit a different section of the same file, then later ask Naudia to roll back the proposal. In that case, restoring `previous_content` would incorrectly wipe the user’s manual edits.
 
-Core Rule
+# Core Rule
 
 Rollback should reverse only the changes Naudia made, while preserving unrelated user edits whenever possible.
 
 Full-file restoration should be a last resort, not the default.
 
-Change Record Requirements
+# Change Record Requirements
 
 For every applied action, Naudia should store:
 
@@ -1463,6 +1633,7 @@ For every applied action, Naudia should store:
 
 Go model concept:
 
+```
 type Change struct {
     ID              int64
     ProposalID      int64
@@ -1479,6 +1650,7 @@ type Change struct {
     Anchors         []PatchAnchor
     AppliedAt       time.Time
 }
+
 type AffectedRange struct {
     StartLineBefore int
     EndLineBefore   int
@@ -1487,35 +1659,37 @@ type AffectedRange struct {
     BeforeTextHash  string
     AfterTextHash   string
 }
+
 type PatchAnchor struct {
     BeforeContext string
     AfterContext  string
     Heading       string
     SectionID     string
 }
+```
 
-Prefer Structured Actions Over Raw File Rewrites
+# Prefer Structured Actions Over Raw File Rewrites
 
 Whenever possible, proposals should use structured actions:
 
-* append_to_note
-* replace_section
-* insert_after_heading
-* insert_before_heading
-* update_lines
-* remove_lines
-* update_task_status
-* add_frontmatter
-* update_frontmatter
-* create_note
-* rename_note
-* move_note
+* `append_to_note`
+* `replace_section`
+* `insert_after_heading`
+* `insert_before_heading`
+* `update_lines`
+* `remove_lines`
+* `update_task_status`
+* `add_frontmatter`
+* `update_frontmatter`
+* `create_note`
+* `rename_note`
+* `move_note`
 
-Avoid entire-file update_note unless necessary.
+Avoid entire-file `update_note` unless necessary.
 
-For example, task extraction should not rewrite a whole daily note. It should use append_to_note, replace_section, insert_after_heading, update_lines, or update_task_status.
+For example, task extraction should not rewrite a whole daily note. It should use `append_to_note`, `replace_section`, `insert_after_heading`, `update_lines`, or `update_task_status`.
 
-Patch Application Strategy
+# Patch Application Strategy
 
 When applying a proposal, Naudia should:
 
@@ -1530,9 +1704,9 @@ When applying a proposal, Naudia should:
 9. Re-read and verify after hash.
 10. Record change.
 
-Rollback Strategy
+# Rollback Strategy
 
-When rolling back a proposal, Naudia should not immediately restore previous_content.
+When rolling back a proposal, Naudia should not immediately restore `previous_content`.
 
 It should use this order:
 
@@ -1541,27 +1715,31 @@ It should use this order:
 3. If inverse patch fails, try anchor-based rollback.
 4. If anchor-based rollback succeeds, apply it and warn that the file had drifted.
 5. If rollback is ambiguous, stop and create a conflict artifact.
-6. Only use full previous content if the current file still exactly matches the applied hash or the user passes --force.
+6. Only use full previous content if the current file still exactly matches the applied hash or the user passes `--force`.
 
-Clean Rollback
+# Clean Rollback
 
-If current file hash equals the stored after_hash, rollback is straightforward:
+If current file hash equals the stored `after_hash`, rollback is straightforward:
 
+```
 current_hash == after_hash
+```
 
 Then Naudia may safely restore previous content or apply inverse patch.
 
-Drifted Rollback
+# Drifted Rollback
 
-If current file hash does not equal after_hash, the file has changed since Naudia applied the proposal:
+If current file hash does not equal `after_hash`, the file has changed since Naudia applied the proposal:
 
+```
 current_hash != after_hash
+```
 
 Naudia must not blindly restore previous content.
 
 Instead, it should attempt a three-way rollback.
 
-Three-Way Rollback
+# Three-Way Rollback
 
 For modified files, Naudia should perform a three-way merge using:
 
@@ -1575,26 +1753,32 @@ Reverse the difference between Base and Applied while preserving unrelated chang
 
 Conceptually:
 
+```
 rollback_patch = diff(Applied, Base)
 result = apply rollback_patch to Current
+```
 
 If clean, write result.
 
 If conflict, stop and surface conflict.
 
-Conflict Handling
+# Conflict Handling
 
 If rollback cannot safely apply, Naudia should not overwrite the file.
 
 Instead, it should create a conflict artifact:
 
+```
 .naudia/conflicts/
   proposal-3-Projects-App-PLAN.md.conflict
+```
 
 Or:
 
+```
 .naudia/conflicts/
   proposal-3.json
+```
 
 Conflict output should show:
 
@@ -1606,6 +1790,7 @@ Conflict output should show:
 
 Terminal output example:
 
+```
 ╭─ Rollback Conflict ─────────────────────────╮
 │ Naudia could not safely roll back proposal 3│
 │ for this file:                              │
@@ -1619,23 +1804,29 @@ Terminal output example:
 │ Conflict details were written to:           │
 │ .naudia/conflicts/proposal-3.json           │
 ╰─────────────────────────────────────────────╯
+```
 
-Force Rollback
+# Force Rollback
 
 Allow:
 
+```
 naudia rollback 3 --force
+```
 
 Force rollback may restore previous content and overwrite user edits.
 
 Before doing so, require confirmation:
 
+```
 Force rollback may overwrite manual edits made after this proposal was applied.
+
 Type the proposal id to confirm:
+```
 
-Safer Section-Based Operations
+# Safer Section-Based Operations
 
-For actions like replace_section, Naudia should store:
+For actions like `replace_section`, Naudia should store:
 
 * Heading text
 * Heading level
@@ -1650,7 +1841,7 @@ Rollback should search for the section by heading and hash.
 
 If the same heading appears multiple times, require disambiguation or treat as conflict.
 
-Safer Task Operations
+# Safer Task Operations
 
 For task extraction or task movement, avoid replacing whole sections when possible.
 
@@ -1663,7 +1854,7 @@ Prefer line-level operations:
 
 If removing or moving tasks, store exact task line hashes.
 
-Rename and Move Rollbacks
+# Rename and Move Rollbacks
 
 For note moves and renames, store:
 
@@ -1681,7 +1872,7 @@ Rollback rules:
 3. If source path now exists, stop and report conflict.
 4. If force is used, require explicit confirmation.
 
-Delete Rollbacks
+# Delete Rollbacks
 
 Deletes are high-risk.
 
@@ -1693,21 +1884,21 @@ For delete actions:
 * Rollback recreates the deleted note only if the path is still empty.
 * If a new file exists at that path, stop and report conflict.
 
-Apply/Rollback Acceptance Criteria
+# Apply/Rollback Acceptance Criteria
 
 * Naudia does not wipe unrelated manual edits during rollback.
-* Full previous content restoration is only used when current hash equals applied hash or --force is passed.
+* Full previous content restoration is only used when current hash equals applied hash or `--force` is passed.
 * Drifted files use inverse patch or three-way merge.
 * Conflicts are detected and surfaced clearly.
-* Conflict artifacts are written to .naudia/conflicts/.
+* Conflict artifacts are written to `.naudia/conflicts/`.
 * Structured actions are preferred over full-file rewrites.
 * Rollback behavior is tested with manual edits in unaffected sections.
 * Rename, move, and delete rollback cases are tested.
 * Force rollback requires explicit confirmation.
 
-Command Specification
+# Command Specification
 
-naudia init
+# `naudia init`
 
 Initializes Naudia for a vault.
 
@@ -1717,8 +1908,8 @@ Behavior:
 * Verify path exists.
 * Verify path contains Markdown files.
 * Ask for vault name or derive from folder.
-* Create .naudia/.
-* Create .naudia/config.toml.
+* Create `.naudia/`.
+* Create `.naudia/config.toml`.
 * Create SQLite database.
 * Run migrations.
 * Check sqlite-vec availability.
@@ -1730,11 +1921,13 @@ Behavior:
 
 Options:
 
+```
 naudia init
 naudia init --vault /path/to/vault
 naudia init --vault-name Main
 naudia init --model llama3.1:8b
 naudia init --embedding-model nomic-embed-text
+```
 
 Acceptance criteria:
 
@@ -1744,7 +1937,7 @@ Acceptance criteria:
 * Gives helpful warnings if Ollama, sqlite-vec, or Obsidian CLI is missing.
 * Does not require Obsidian CLI to function.
 
-naudia status
+# `naudia status`
 
 Shows environment status.
 
@@ -1767,6 +1960,7 @@ Output should include:
 
 Example:
 
+```
 ╭─ Naudia Status ─────────────────────────────╮
 │ Vault          Main                         │
 │ Path           ~/Documents/Obsidian/Main    │
@@ -1782,15 +1976,16 @@ Example:
 │ Obsidian CLI   unavailable                  │
 │ Proposals      4 pending                    │
 ╰─────────────────────────────────────────────╯
+```
 
-naudia scan
+# `naudia scan`
 
 Scans and indexes the vault.
 
 Behavior:
 
 * Find Markdown files.
-* Ignore .naudia/.
+* Ignore `.naudia/`.
 * Respect ignore rules.
 * Parse frontmatter.
 * Parse headings.
@@ -1806,23 +2001,25 @@ Behavior:
 
 Options:
 
+```
 naudia scan
 naudia scan --no-embeddings
 naudia scan --force
 naudia scan --folder Projects
 naudia scan --json
 naudia scan --quiet
+```
 
 Acceptance criteria:
 
 * Correctly indexes notes.
-* Does not index .naudia/.
+* Does not index `.naudia/`.
 * Incremental scan skips unchanged files.
 * Force scan rebuilds.
 * Embeddings are incremental.
 * sqlite-vec failure does not break normal indexing.
 
-naudia review
+# `naudia review`
 
 Reviews vault health.
 
@@ -1838,6 +2035,7 @@ Behavior:
 
 Options:
 
+```
 naudia review
 naudia review --today
 naudia review --week
@@ -1849,9 +2047,11 @@ naudia review --structure
 naudia review --no-ai
 naudia review --json
 naudia review --interactive
+```
 
 Review categories:
 
+```
 Structure
 Daily Notes
 Projects
@@ -1862,6 +2062,7 @@ Stale Notes
 Duplicate Notes
 Orphan Notes
 Unresolved Questions
+```
 
 Acceptance criteria:
 
@@ -1871,7 +2072,7 @@ Acceptance criteria:
 * Includes Obsidian links where useful.
 * Does not overstuff the local model context.
 
-naudia daily
+# `naudia daily`
 
 Distills daily notes.
 
@@ -1889,6 +2090,7 @@ Behavior:
 
 Options:
 
+```
 naudia daily
 naudia daily --date 2026-05-03
 naudia daily --week
@@ -1896,17 +2098,27 @@ naudia daily --apply
 naudia daily --create-permanent-notes
 naudia daily --move-tasks
 naudia daily --show-context
+```
 
 Default output format:
 
+```
 # Daily Review — YYYY-MM-DD
+
 ## Summary
+
 ## Decisions
+
 ## Tasks
+
 ## Project Updates
+
 ## Ideas Worth Keeping
+
 ## Notes to Create
+
 ## Carry Forward
+```
 
 Acceptance criteria:
 
@@ -1916,9 +2128,9 @@ Acceptance criteria:
 * Creates safe proposal.
 * Can apply after approval.
 * Uses a conservative context pack.
-* Can show context with --show-context.
+* Can show context with `--show-context`.
 
-naudia project "<name>"
+# `naudia project "<name>"`
 
 Compiles project memory.
 
@@ -1933,6 +2145,7 @@ Behavior:
 
 Possible files:
 
+```
 README.md
 PLAN.md
 TODO.md
@@ -1940,18 +2153,22 @@ DECISIONS.md
 QUESTIONS.md
 CHANGELOG.md
 CONTEXT.md
+```
 
 Options:
 
+```
 naudia project "Naudia"
 naudia project "Naudia" --generate readme,plan,todo,decisions
 naudia project "Naudia" --folder Projects/Naudia
 naudia project "Naudia" --apply
 naudia project "Naudia" --json
 naudia project "Naudia" --show-context
+```
 
 Generated structure:
 
+```
 Projects/<Project Name>/
   README.md
   PLAN.md
@@ -1960,6 +2177,7 @@ Projects/<Project Name>/
   QUESTIONS.md
   CHANGELOG.md
   CONTEXT.md
+```
 
 Acceptance criteria:
 
@@ -1971,9 +2189,9 @@ Acceptance criteria:
 * Preserves user content where possible.
 * Uses conservative context limits.
 * Does not stuff all related notes into the prompt.
-* Can show context with --show-context.
+* Can show context with `--show-context`.
 
-naudia links
+# `naudia links`
 
 Suggests backlinks and graph improvements.
 
@@ -1989,11 +2207,13 @@ Behavior:
 
 Options:
 
+```
 naudia links
 naudia links --note "Ollama"
 naudia links --folder Projects
 naudia links --orphans
 naudia links --apply
+```
 
 Acceptance criteria:
 
@@ -2004,7 +2224,7 @@ Acceptance criteria:
 * Each affected note includes an Obsidian open link.
 * Semantic suggestions are conservative and confidence-scored.
 
-naudia tasks
+# `naudia tasks`
 
 Extracts tasks.
 
@@ -2021,12 +2241,14 @@ Behavior:
 
 Options:
 
+```
 naudia tasks
 naudia tasks --today
 naudia tasks --week
 naudia tasks --project "Naudia"
 naudia tasks --include-inferred
 naudia tasks --apply
+```
 
 Acceptance criteria:
 
@@ -2035,7 +2257,7 @@ Acceptance criteria:
 * Can generate project TODO proposal.
 * Uses safe structured actions for task updates.
 
-naudia decisions
+# `naudia decisions`
 
 Optional but useful command.
 
@@ -2043,15 +2265,17 @@ Behavior:
 
 * Extract decisions from project notes and daily notes.
 * Group by project or topic.
-* Create/update DECISIONS.md.
+* Create/update `DECISIONS.md`.
 
 Options:
 
+```
 naudia decisions
 naudia decisions --project "Naudia"
 naudia decisions --apply
+```
 
-naudia questions
+# `naudia questions`
 
 Optional but useful command.
 
@@ -2059,15 +2283,17 @@ Behavior:
 
 * Extract unresolved questions.
 * Group by project/topic.
-* Create/update QUESTIONS.md.
+* Create/update `QUESTIONS.md`.
 
 Options:
 
+```
 naudia questions
 naudia questions --project "Naudia"
 naudia questions --apply
+```
 
-naudia structure
+# `naudia structure`
 
 Analyzes vault structure.
 
@@ -2083,13 +2309,16 @@ Behavior:
 
 Options:
 
+```
 naudia structure
 naudia structure --propose
 naudia structure --apply
 naudia structure --interactive
+```
 
 Possible recommended structure:
 
+```
 00 Inbox/
 01 Daily/
 02 Projects/
@@ -2098,6 +2327,7 @@ Possible recommended structure:
 05 People/
 06 Templates/
 99 Archive/
+```
 
 Important:
 
@@ -2113,7 +2343,7 @@ Acceptance criteria:
 * Shows Obsidian links for affected notes.
 * Avoids sending large note bodies to the model.
 
-naudia templates
+# `naudia templates`
 
 Analyzes and improves templates.
 
@@ -2127,14 +2357,17 @@ Behavior:
 
 Options:
 
+```
 naudia templates
 naudia templates --folder Templates
 naudia templates --project
 naudia templates --daily
 naudia templates --apply
+```
 
 Initial template types:
 
+```
 Daily Note
 Project
 Meeting
@@ -2142,6 +2375,7 @@ Person
 Resource
 Decision
 Permanent Note
+```
 
 Acceptance criteria:
 
@@ -2149,31 +2383,35 @@ Acceptance criteria:
 * Preserves user-specific style where possible.
 * Template changes are reviewable.
 
-naudia proposals
+# `naudia proposals`
 
 Lists pending proposals.
 
 Options:
 
+```
 naudia proposals
 naudia proposals --all
 naudia proposals --pending
 naudia proposals --applied
 naudia proposals --interactive
 naudia proposals --json
+```
 
 Output should be premium.
 
 Example:
 
+```
 ╭─ Pending Proposals ─────────────────────────╮
 │ 1  Create Projects/Naudia/PLAN.md     low   │
 │ 2  Add missing links to 8 notes       low   │
 │ 3  Move 14 notes into Projects/       high  │
 │ 4  Improve Templates/Project.md       med   │
 ╰─────────────────────────────────────────────╯
+```
 
-naudia show <proposal-id>
+# `naudia show <proposal-id>`
 
 Shows proposal details.
 
@@ -2189,19 +2427,23 @@ Behavior:
 
 Options:
 
+```
 naudia show 3
 naudia show 3 --json
 naudia show 3 --patch
+```
 
-naudia apply <proposal-id>
+# `naudia apply <proposal-id>`
 
 Applies a proposal.
 
 Options:
 
+```
 naudia apply 3
 naudia apply all
 naudia apply 3 --yes
+```
 
 Behavior:
 
@@ -2225,32 +2467,38 @@ Acceptance criteria:
 * Shows affected notes with Obsidian links.
 * Does not rely only on full-file previous content for rollback.
 
-naudia reject <proposal-id>
+# `naudia reject <proposal-id>`
 
 Rejects proposal.
 
 Options:
 
+```
 naudia reject 3
 naudia reject all
+```
 
 Behavior:
 
 * Mark proposal rejected.
 * Do not delete proposal file by default.
 
-naudia rollback <proposal-id>
+# `naudia rollback <proposal-id>`
 
 Roll back an applied proposal.
 
 Alias:
 
+```
 naudia undo <proposal-id>
+```
 
 Options:
 
+```
 naudia rollback 3
 naudia rollback 3 --force
+```
 
 Behavior:
 
@@ -2268,9 +2516,9 @@ Acceptance criteria:
 * Does not wipe unrelated user edits.
 * Blocks unsafe rollback when current file drift conflicts with Naudia’s prior change.
 * Creates conflict artifact when needed.
-* Requires explicit confirmation for --force.
+* Requires explicit confirmation for `--force`.
 
-naudia ask "<question>"
+# `naudia ask "<question>"`
 
 Lower priority than operator workflows, but still useful.
 
@@ -2284,86 +2532,95 @@ Behavior:
 
 Options:
 
+```
 naudia ask "What did I decide about the app name?"
 naudia ask "What are my open tasks for Portico?"
 naudia ask "What projects mention Ollama?"
 naudia ask "What did I decide about naming?" --show-context
+```
 
 Acceptance criteria:
 
 * Retrieval is grounded in vault notes.
 * Answers cite note paths.
 * If uncertain, say so.
-* Can show context with --show-context.
+* Can show context with `--show-context`.
 
-Ignore Rules
+# Ignore Rules
 
 Naudia should ignore:
 
+```
 .naudia/
 .obsidian/workspace*
 .obsidian/cache
 .git/
 node_modules/
 .DS_Store
+```
 
 Configurable ignore patterns:
 
+```
 [ignore]
 patterns = [
   ".naudia/**",
   ".git/**",
   "node_modules/**"
 ]
+```
 
-Naudia may read .obsidian/ config later if useful, but should avoid modifying it initially.
+Naudia may read `.obsidian/` config later if useful, but should avoid modifying it initially.
 
-Markdown Parsing Requirements
+# Markdown Parsing Requirements
 
 Parser should extract:
 
 * Frontmatter
 * Title
 * Headings
-* Wiki links: [[Note]], [[Note|Alias]], [[Note#Heading]]
+* Wiki links: `[[Note]]`, `[[Note|Alias]]`, `[[Note#Heading]]`
 * Markdown links
-* Tags: #tag
-* Tasks: - [ ], - [x]
+* Tags: `#tag`
+* Tasks: `- [ ]`, `- [x]`
 
 Code blocks should be preserved and should not be treated as note links/tasks unless intentionally supported later.
 
-Title Resolution
+# Title Resolution
 
 Title should be determined by:
 
-1. Frontmatter title
+1. Frontmatter `title`
 2. First H1 heading
 3. File basename
 
-Link Resolution
+# Link Resolution
 
 Naudia should resolve wiki links by:
 
 1. Exact relative path
-2. Exact filename without .md
+2. Exact filename without `.md`
 3. Case-insensitive filename match
 4. Alias match from frontmatter aliases
-5. Heading match when link includes #
+5. Heading match when link includes `#`
 
 If ambiguous, mark unresolved or ambiguous.
 
 Do not guess silently.
 
-AI Prompting
+# AI Prompting
 
 Create prompt files by engine.
 
-Global System Prompt
+# Global System Prompt
 
 Use this as the base behavior for all AI calls:
 
+```
 You are Naudia, a local AI steward for an Obsidian vault.
+
 You help maintain, organize, connect, distill, and improve the user's notes.
+
 Rules:
 1. Never invent notes, facts, or decisions that are not supported by provided vault context.
 2. Prefer small, useful edits over large rewrites.
@@ -2382,13 +2639,15 @@ Rules:
 15. You are receiving a deliberately small context pack. Do not assume missing information.
 16. If the provided context is insufficient, say what is missing.
 17. Do not infer facts from weakly related notes.
+```
 
-Review Prompt Output
+# Review Prompt Output
 
 The review engine should ask the model to produce structured JSON.
 
 Expected shape:
 
+```
 {
   "summary": "string",
   "issues": [
@@ -2410,11 +2669,13 @@ Expected shape:
     }
   ]
 }
+```
 
-Daily Prompt Output
+# Daily Prompt Output
 
 Expected shape:
 
+```
 {
   "date": "string",
   "source_note": "string",
@@ -2443,11 +2704,13 @@ Expected shape:
   ],
   "carry_forward": ["string"]
 }
+```
 
-Project Prompt Output
+# Project Prompt Output
 
 Expected shape:
 
+```
 {
   "project_name": "string",
   "source_notes": ["string"],
@@ -2465,11 +2728,13 @@ Expected shape:
     }
   ]
 }
+```
 
-Link Prompt Output
+# Link Prompt Output
 
 Expected shape:
 
+```
 {
   "suggestions": [
     {
@@ -2481,11 +2746,13 @@ Expected shape:
     }
   ]
 }
+```
 
-Structure Prompt Output
+# Structure Prompt Output
 
 Expected shape:
 
+```
 {
   "summary": "string",
   "current_issues": ["string"],
@@ -2504,8 +2771,9 @@ Expected shape:
     }
   ]
 }
+```
 
-AI Output Validation
+# AI Output Validation
 
 All AI JSON output must be validated before use.
 
@@ -2515,7 +2783,7 @@ If JSON parsing fails:
 * If still invalid, show useful error.
 * Do not create proposal from invalid output.
 
-Retrieval and Context Selection
+# Retrieval and Context Selection
 
 For commands that need context:
 
@@ -2531,9 +2799,9 @@ Do not send the entire vault to the model.
 
 Semantic search should produce candidates, not final truth. Exact matches, explicit links, tags, and folder proximity should outrank vector similarity by default.
 
-Naudia must build an explainable context pack before every AI call. The context pack should be inspectable with --show-context for commands that use retrieval.
+Naudia must build an explainable context pack before every AI call. The context pack should be inspectable with `--show-context` for commands that use retrieval.
 
-Embeddings
+# Embeddings
 
 Embeddings are optional but recommended.
 
@@ -2548,38 +2816,45 @@ Initial embedding behavior:
 
 If embeddings are disabled or sqlite-vec is unavailable, Naudia should still work with keyword/link/title search.
 
-Output Modes
+# Output Modes
 
 Default pretty output.
 
 Support JSON:
 
+```
 naudia review --json
 naudia proposals --json
 naudia status --json
+```
 
 Support Markdown reports:
 
+```
 naudia review --markdown
 naudia daily --markdown
+```
 
 This helps scripting and future UI integrations.
 
-Error Handling
+# Error Handling
 
 Errors should be helpful, specific, and premium formatted.
 
 Example:
 
+```
 ╭─ Config Missing ────────────────────────────╮
 │ No Naudia config was found for this vault.  │
 │                                             │
 │ Run:                                        │
 │   naudia init                               │
 ╰─────────────────────────────────────────────╯
+```
 
 Example:
 
+```
 ╭─ Vault Not Found ───────────────────────────╮
 │ No Obsidian vault was found at:             │
 │ /path/to/vault                              │
@@ -2587,9 +2862,11 @@ Example:
 │ Initialize with:                            │
 │   naudia init --vault /path/to/vault        │
 ╰─────────────────────────────────────────────╯
+```
 
 Example:
 
+```
 ╭─ Stale Proposal ────────────────────────────╮
 │ Proposal 3 is stale because this file       │
 │ changed after the proposal was created:     │
@@ -2599,9 +2876,11 @@ Example:
 │ Run `naudia review` to generate a fresh     │
 │ proposal.                                   │
 ╰─────────────────────────────────────────────╯
+```
 
 Example:
 
+```
 ╭─ Context Budget Reached ────────────────────╮
 │ Selected 16 of 43 candidate chunks.         │
 │ Dropped low-confidence semantic matches     │
@@ -2610,12 +2889,15 @@ Example:
 │ Run with --show-context to inspect what     │
 │ Naudia sent to the model.                   │
 ╰─────────────────────────────────────────────╯
+```
 
-Logging
+# Logging
 
 Write logs to:
 
+```
 .naudia/logs/naudia.log
+```
 
 Do not log full note contents by default.
 
@@ -2623,15 +2905,17 @@ Debug mode can log more details, but avoid logging sensitive content unless the 
 
 Command:
 
+```
 naudia --debug review
+```
 
-Testing Requirements
+# Testing Requirements
 
 Use Go’s testing package.
 
 Use testify if helpful.
 
-Unit Tests
+# Unit Tests
 
 Test:
 
@@ -2652,22 +2936,24 @@ Test:
 * sqlite-vec availability fallback
 * Context budget enforcement
 * Context ranking and deduplication
-* --show-context output
+* `--show-context` output
 * Drifted rollback preserving unrelated manual edits
 * Rollback conflict detection
 * Force rollback confirmation
 
-Integration Tests
+# Integration Tests
 
 Use:
 
+```
 testdata/sample-vault
+```
 
 Test:
 
-* naudia init
-* naudia scan
-* naudia review --no-ai
+* `naudia init`
+* `naudia scan`
+* `naudia review --no-ai`
 * proposal creation
 * proposal apply
 * proposal rollback
@@ -2677,9 +2963,9 @@ Test:
 * rollback conflict after same-section manual edit
 * force rollback path
 
-Rollback-Specific Tests
+# Rollback-Specific Tests
 
-Clean Rollback Test
+# Clean Rollback Test
 
 Scenario:
 
@@ -2692,7 +2978,7 @@ Expected:
 * File exactly matches original content.
 * Proposal marked rolled back.
 
-Drifted Unrelated Edit Test
+# Drifted Unrelated Edit Test
 
 Scenario:
 
@@ -2705,7 +2991,7 @@ Expected:
 * Naudia reverses only its own section change.
 * User’s manual edit remains.
 
-Drifted Same Section Conflict Test
+# Drifted Same Section Conflict Test
 
 Scenario:
 
@@ -2719,7 +3005,7 @@ Expected:
 * File is not overwritten.
 * Conflict artifact is created.
 
-Full Restore Safety Test
+# Full Restore Safety Test
 
 Scenario:
 
@@ -2729,15 +3015,15 @@ Scenario:
 
 Expected:
 
-* Naudia does not restore previous full content unless --force is passed.
+* Naudia does not restore previous full content unless `--force` is passed.
 
-Force Rollback Test
+# Force Rollback Test
 
 Scenario:
 
 1. Apply proposal.
 2. User manually edits file.
-3. User runs naudia rollback <id> --force.
+3. User runs `naudia rollback <id> --force`.
 
 Expected:
 
@@ -2745,7 +3031,7 @@ Expected:
 * After confirmation, previous content may be restored.
 * Output warns that manual edits may have been overwritten.
 
-Move Rollback Conflict Test
+# Move Rollback Conflict Test
 
 Scenario:
 
@@ -2758,7 +3044,7 @@ Expected:
 * Naudia detects changed destination.
 * Rollback is blocked unless forced.
 
-Delete Rollback Conflict Test
+# Delete Rollback Conflict Test
 
 Scenario:
 
@@ -2771,14 +3057,14 @@ Expected:
 * Naudia does not overwrite new note.
 * Conflict is reported.
 
-Context-Specific Tests
+# Context-Specific Tests
 
-Context Budget Test
+# Context Budget Test
 
 Scenario:
 
 1. Project has many related notes.
-2. User runs naudia project "Test App".
+2. User runs `naudia project "Test App"`.
 
 Expected:
 
@@ -2786,11 +3072,11 @@ Expected:
 * Weak semantic matches are dropped.
 * Exact matches and linked notes are preferred.
 
-Show Context Test
+# Show Context Test
 
 Scenario:
 
-1. User runs naudia project "Test App" --show-context.
+1. User runs `naudia project "Test App" --show-context`.
 
 Expected:
 
@@ -2800,7 +3086,7 @@ Expected:
 * Output shows character counts.
 * Output shows Obsidian links.
 
-Semantic Candidate Test
+# Semantic Candidate Test
 
 Scenario:
 
@@ -2811,7 +3097,7 @@ Expected:
 
 * The exact folder project note outranks the semantic-only candidate.
 
-AI Tests
+# AI Tests
 
 Do not require Ollama for normal CI.
 
@@ -2819,17 +3105,21 @@ Create an AI client interface so mock clients can be used.
 
 Example:
 
+```
 type ChatClient interface {
     Chat(ctx context.Context, req ChatRequest) (ChatResponse, error)
 }
+
 type EmbeddingClient interface {
     Embed(ctx context.Context, input []string) ([]Embedding, error)
 }
+```
 
-Sample Vault Fixture
+# Sample Vault Fixture
 
 Create a small test vault:
 
+```
 testdata/sample-vault/
   Daily/
     2026-05-03.md
@@ -2842,6 +3132,7 @@ testdata/sample-vault/
     Local AI.md
   Resources/
     Ollama.md
+```
 
 Include:
 
@@ -2855,9 +3146,9 @@ Include:
 * Notes with overlapping chunks
 * Notes where rollback conflicts can be tested
 
-Milestones
+# Milestones
 
-Milestone 1 — Foundation
+# Milestone 1 — Foundation
 
 Goal:
 
@@ -2865,16 +3156,18 @@ Build the basic Go CLI, config, vault scanner, SQLite index, and environment che
 
 Commands:
 
+```
 naudia init
 naudia status
 naudia scan
+```
 
 Tasks:
 
 * Create Go project.
 * Add Cobra command routing.
 * Add Viper config loading.
-* Add vault-local .naudia/ folder.
+* Add vault-local `.naudia/` folder.
 * Add SQLite database.
 * Add migrations.
 * Add sqlite-vec detection.
@@ -2896,7 +3189,7 @@ Acceptance criteria:
 * No AI required yet except health check.
 * Output looks polished.
 
-Milestone 2 — Vault Review
+# Milestone 2 — Vault Review
 
 Goal:
 
@@ -2904,8 +3197,10 @@ Create useful non-mutating vault review.
 
 Commands:
 
+```
 naudia review
 naudia review --no-ai
+```
 
 Tasks:
 
@@ -2919,7 +3214,7 @@ Tasks:
 * Detect template inconsistencies.
 * Add optional AI review summary.
 * Generate premium terminal report.
-* Store review report in .naudia/reports/.
+* Store review report in `.naudia/reports/`.
 
 Acceptance criteria:
 
@@ -2930,7 +3225,7 @@ Acceptance criteria:
 * Review output looks good enough for screenshots.
 * Review does not overstuff local model prompts.
 
-Milestone 3 — Proposal System and Robust Rollbacks
+# Milestone 3 — Proposal System and Robust Rollbacks
 
 Goal:
 
@@ -2938,18 +3233,20 @@ Create reviewable proposals, safe apply logic, and robust rollback behavior that
 
 Commands:
 
+```
 naudia proposals
 naudia show <id>
 naudia apply <id>
 naudia reject <id>
 naudia rollback <id>
+```
 
 Tasks:
 
 * Implement proposal schema.
 * Implement structured proposal actions.
 * Store proposals in DB.
-* Store proposal JSON/patch files in .naudia/proposals/.
+* Store proposal JSON/patch files in `.naudia/proposals/`.
 * Render proposal summaries.
 * Generate forward and inverse diffs.
 * Build TUI proposal list.
@@ -2961,7 +3258,7 @@ Tasks:
 * Implement drifted rollback.
 * Implement three-way rollback.
 * Implement rollback conflict detection.
-* Write conflict artifacts to .naudia/conflicts/.
+* Write conflict artifacts to `.naudia/conflicts/`.
 * Add stale hash checks.
 * Add high-risk confirmation.
 * Add force rollback with explicit confirmation.
@@ -2978,7 +3275,7 @@ Acceptance criteria:
 * Force rollback requires explicit confirmation.
 * Diff view is premium.
 
-Milestone 4 — sqlite-vec Semantic Index
+# Milestone 4 — sqlite-vec Semantic Index
 
 Goal:
 
@@ -2986,8 +3283,10 @@ Add local vector search.
 
 Commands:
 
+```
 naudia scan
 naudia status
+```
 
 Tasks:
 
@@ -3002,11 +3301,11 @@ Acceptance criteria:
 
 * Changed chunks get embedded.
 * Semantic search works locally.
-* sqlite-vec status appears in naudia status.
+* sqlite-vec status appears in `naudia status`.
 * Failure to load sqlite-vec does not break core functionality.
 * Semantic search is treated as candidate retrieval, not as final truth.
 
-Milestone 4.5 — Conservative Context Engine
+# Milestone 4.5 — Conservative Context Engine
 
 Goal:
 
@@ -3014,9 +3313,11 @@ Build a context selection layer that prevents local model overload and reduces h
 
 Commands:
 
+```
 naudia ask "..."
 naudia project "..." --show-context
 naudia daily --show-context
+```
 
 Tasks:
 
@@ -3025,7 +3326,7 @@ Tasks:
 * Implement context ranking.
 * Implement context deduplication.
 * Implement command-specific context limits.
-* Implement --show-context.
+* Implement `--show-context`.
 * Prefer exact/link/tag matches before semantic matches.
 * Enforce max notes, chunks, and characters.
 * Add debug output for dropped context.
@@ -3040,7 +3341,7 @@ Acceptance criteria:
 * Local model prompts remain focused and source-grounded.
 * Commands can report when context is insufficient.
 
-Milestone 5 — Daily Distiller
+# Milestone 5 — Daily Distiller
 
 Goal:
 
@@ -3048,11 +3349,13 @@ Turn messy daily notes into useful structured memory.
 
 Commands:
 
+```
 naudia daily
 naudia daily --date YYYY-MM-DD
 naudia daily --week
 naudia daily --apply
 naudia daily --show-context
+```
 
 Tasks:
 
@@ -3075,7 +3378,7 @@ Acceptance criteria:
 * Context can be inspected.
 * Context stays within budget.
 
-Milestone 6 — Project Memory Compiler
+# Milestone 6 — Project Memory Compiler
 
 Goal:
 
@@ -3083,9 +3386,11 @@ Create durable project memory from scattered notes.
 
 Commands:
 
+```
 naudia project "<name>"
 naudia project "<name>" --apply
 naudia project "<name>" --show-context
+```
 
 Tasks:
 
@@ -3110,7 +3415,7 @@ Acceptance criteria:
 * Does not overstuff the model.
 * Can show context.
 
-Milestone 7 — Link Suggestions
+# Milestone 7 — Link Suggestions
 
 Goal:
 
@@ -3118,10 +3423,12 @@ Suggest useful graph improvements.
 
 Commands:
 
+```
 naudia links
 naudia links --note "<name>"
 naudia links --folder "<folder>"
 naudia links --apply
+```
 
 Tasks:
 
@@ -3140,7 +3447,7 @@ Acceptance criteria:
 * User can apply proposals.
 * Affected notes include Obsidian links.
 
-Milestone 8 — Task and Decision Extraction
+# Milestone 8 — Task and Decision Extraction
 
 Goal:
 
@@ -3148,11 +3455,13 @@ Make vault action items and decisions visible.
 
 Commands:
 
+```
 naudia tasks
 naudia tasks --project "<name>"
 naudia tasks --include-inferred
 naudia decisions
 naudia questions
+```
 
 Tasks:
 
@@ -3173,7 +3482,7 @@ Acceptance criteria:
 * Project-level files can be generated.
 * Task changes can be rolled back safely.
 
-Milestone 9 — Structure and Template Doctor
+# Milestone 9 — Structure and Template Doctor
 
 Goal:
 
@@ -3181,11 +3490,13 @@ Help users improve vault organization and templates.
 
 Commands:
 
+```
 naudia structure
 naudia structure --propose
 naudia templates
 naudia templates --apply
 naudia doctor
+```
 
 Tasks:
 
@@ -3205,7 +3516,7 @@ Acceptance criteria:
 * Terminal output is polished.
 * Moves and renames have safe rollback behavior.
 
-Milestone 10 — Distribution and Release
+# Milestone 10 — Distribution and Release
 
 Goal:
 
@@ -3234,15 +3545,17 @@ Acceptance criteria:
 * README clearly explains value.
 * Project feels polished enough to star.
 
-Installation Requirements
+# Installation Requirements
 
 The installation experience must be frictionless.
 
-Homebrew
+# Homebrew
 
 Preferred:
 
+```
 brew install drakeafk/naudia/naudia
+```
 
 This requires:
 
@@ -3250,29 +3563,33 @@ This requires:
 * Homebrew tap repo
 * Formula generation
 
-Curl Script
+# Curl Script
 
 Provide:
 
+```
 curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
+```
 
 Script should:
 
 * Detect OS
 * Detect architecture
 * Download latest release
-* Install binary to /usr/local/bin or ~/.local/bin
+* Install binary to `/usr/local/bin` or `~/.local/bin`
 * Print next steps
 
-Manual Install
+# Manual Install
 
 Also support:
 
+```
 go install github.com/drakeafk/naudia/cmd/naudia@latest
+```
 
 Assuming public module path.
 
-GitHub Releases
+# GitHub Releases
 
 Each release should include:
 
@@ -3283,21 +3600,21 @@ Each release should include:
 * naudia_Windows_x86_64.zip
 * checksums.txt
 
-README Structure
+# README Structure
 
 README should include:
 
-Naudia
+# Naudia
 
 Naudia is your local AI steward for Obsidian.
 
-Why Naudia?
+## Why Naudia?
 
 Most AI note tools let you chat with your notes.
 
 Naudia helps you operate your vault.
 
-Why Naudia is not just another RAG chatbot
+## Why Naudia is not just another RAG chatbot
 
 Explain:
 
@@ -3310,7 +3627,7 @@ Explain:
 * Conservative context
 * Conflict-safe editing
 
-Features
+## Features
 
 * Vault review
 * Daily note distillation
@@ -3327,48 +3644,55 @@ Features
 * Optional Obsidian CLI integration
 * Premium terminal UI
 
-Installation
+## Installation
 
 Include Homebrew, curl, Go install, and manual binaries.
 
-Quick Start
+## Quick Start
 
+```
 ollama pull llama3.1:8b
 ollama pull nomic-embed-text
 naudia init
 naudia scan
 naudia review
+```
 
-Example Workflow
+## Example Workflow
 
+```
 naudia review
 naudia proposals
 naudia show 3
 naudia apply 3
 naudia rollback 3
+```
 
-Commands
+## Commands
 
-Configuration
+## Configuration
 
-Safety Model
+## Safety Model
 
-Context Model
+## Context Model
 
-Architecture
+## Architecture
 
-Roadmap
+## Roadmap
 
-Contributing
+## Contributing
 
-Example README Demo
+# Example README Demo
 
 Include this:
 
+```
 naudia review
+```
 
 Example output:
 
+```
 ╭─ Vault Review ──────────────────────────────╮
 │ Naudia found 23 opportunities to improve    │
 │ your vault.                                 │
@@ -3377,60 +3701,79 @@ Example output:
 │ Risk         low                            │
 │ Next         naudia proposals               │
 ╰─────────────────────────────────────────────╯
+
 Daily Notes
   • 8 daily notes contain reusable project knowledge
   • 4 project notes have unresolved tasks
+
 Links
   • 11 notes mention existing concepts without links
   • 6 notes appear to be orphaned
+```
 
 Then:
 
+```
 naudia proposals
+```
 
 Example output:
 
+```
 ╭─ Pending Proposals ─────────────────────────╮
 │ 1  Distill this week's daily notes     low   │
 │ 2  Add missing links to 8 notes        low   │
 │ 3  Create Projects/Naudia/PLAN.md      low   │
 │ 4  Improve Templates/Project.md        med   │
 ╰─────────────────────────────────────────────╯
+```
 
 Then:
 
+```
 naudia show 3
+```
 
 Then:
 
+```
 naudia apply 3
+```
 
-CLI Tone
+# CLI Tone
 
 Naudia should sound capable and calm.
 
 Good:
 
+```
 Naudia reviewed 324 notes and prepared 5 suggestions.
+```
 
 Good:
 
+```
 This proposal touches 18 files, so I marked it high risk.
 Review carefully before applying.
+```
 
 Good:
 
+```
 Context budget reached. I selected the strongest 16 chunks and dropped 27 weaker candidates.
+```
 
 Avoid overly cute personality.
 
 Avoid:
 
+```
 ✨ Magical vault vibes activated!
+```
 
 The tone should be polished, trustworthy, and slightly assistant-like.
 
-Security and Privacy
+# Security and Privacy
 
 Naudia should state clearly:
 
@@ -3440,27 +3783,29 @@ Naudia should state clearly:
 * It does not require cloud APIs.
 * It reads Markdown files from the configured vault.
 * It writes only after approval.
-* It stores local metadata in .naudia/.
+* It stores local metadata in `.naudia/`.
 * It uses sqlite-vec locally for semantic search.
 * It does not include telemetry in the initial version.
 
 If telemetry is ever added later, it must be opt-in.
 
-Git Safety
+# Git Safety
 
 If the vault is inside a Git repo, Naudia should detect this and optionally show Git status before applying changes.
 
 Initial behavior:
 
-* Detect .git/.
+* Detect `.git/`.
 * Warn if working tree has changes before large proposal.
 * Do not require Git.
 
 Future command:
 
+```
 naudia apply 3 --git-check
+```
 
-Performance Requirements
+# Performance Requirements
 
 Initial targets:
 
@@ -3472,7 +3817,7 @@ Initial targets:
 * Large vaults should not crash.
 * Rollback conflict detection should avoid destructive overwrites.
 
-Accessibility of Output
+# Accessibility of Output
 
 Terminal output should be readable.
 
@@ -3480,20 +3825,27 @@ Avoid giant walls of text by default.
 
 For large output, show summary first and write full report to:
 
+```
 .naudia/reports/
+```
 
 Example:
 
+```
 Full report written to .naudia/reports/2026-05-03-vault-review.md
+```
 
-Release Naming
+# Release Naming
 
 Initial release:
 
+```
 v0.1.0 — Foundation
+```
 
 Suggested roadmap:
 
+```
 v0.1.0 scan/status/review
 v0.2.0 proposals/apply/rollback
 v0.3.0 sqlite-vec semantic index
@@ -3503,36 +3855,43 @@ v0.6.0 project compiler
 v0.7.0 links/tasks
 v0.8.0 structure/templates
 v1.0.0 stable CLI + docs + Homebrew + polished TUI
+```
 
-Package Name
+# Package Name
 
 Preferred binary:
 
+```
 naudia
+```
 
 Preferred repo:
 
+```
 github.com/drakeafk/naudia
+```
 
 Preferred Homebrew:
 
+```
 brew install drakeafk/naudia/naudia
+```
 
-Important Implementation Notes
+# Important Implementation Notes
 
-1. Build deterministic functionality first.
+# 1. Build deterministic functionality first.
 
 Scanning, parsing, indexing, diffs, proposals, apply, and rollback matter more than AI in the foundation.
 
-2. Keep AI calls behind interfaces.
+# 2. Keep AI calls behind interfaces.
 
 This makes tests easy and allows future support for other local model backends.
 
-3. Use sqlite-vec for semantic search.
+# 3. Use sqlite-vec for semantic search.
 
 This is a strong technical choice and should be highlighted in the README.
 
-4. Keep proposal actions structured.
+# 4. Keep proposal actions structured.
 
 Do not rely only on raw text diffs.
 
@@ -3540,55 +3899,55 @@ Store structured actions and render diffs from them.
 
 Structured actions are also required for safe rollback. Prefer append, section replacement, line updates, and task-specific operations over full-file rewrites.
 
-5. Use file hashes before applying.
+# 5. Use file hashes before applying.
 
 Prevent stale proposals from overwriting user changes.
 
-6. Never hide destructive changes.
+# 6. Never hide destructive changes.
 
 Moves, renames, deletes, and large rewrites must be explicit.
 
-7. Use Obsidian URI links generously.
+# 7. Use Obsidian URI links generously.
 
 When a note is referenced, make it easy to open in Obsidian.
 
-8. Make the terminal UI beautiful.
+# 8. Make the terminal UI beautiful.
 
 Premium terminal output is a product requirement, not polish.
 
-9. Make it useful even with no embeddings.
+# 9. Make it useful even with no embeddings.
 
 Embeddings are a boost, not a hard dependency.
 
 Semantic matches should never override exact note, link, tag, or folder evidence by default.
 
-10. Source everything.
+# 10. Source everything.
 
 Project summaries, decisions, tasks, and recommendations should include source note paths.
 
-Context should be intentionally small and explainable. Naudia should use --show-context to make retrieval transparent and should say when context is insufficient instead of guessing.
+Context should be intentionally small and explainable. Naudia should use `--show-context` to make retrieval transparent and should say when context is insufficient instead of guessing.
 
-11. Do not require Obsidian CLI.
+# 11. Do not require Obsidian CLI.
 
 Use Obsidian URI scheme as the primary bridge and direct filesystem operations as the reliable core.
 
-12. Make installation frictionless.
+# 12. Make installation frictionless.
 
 Homebrew, curl installer, GitHub Releases, and Go install should all be supported.
 
-13. Rollback must preserve user trust.
+# 13. Rollback must preserve user trust.
 
 Naudia must not wipe unrelated manual edits during rollback.
 
 Full-file restore should only happen when the current file still matches the applied hash or when the user explicitly forces rollback.
 
-14. Treat local model context as expensive.
+# 14. Treat local model context as expensive.
 
 Do not assume bigger prompts are better.
 
 Prefer smaller, stronger context packs.
 
-Final Product Definition
+# Final Product Definition
 
 Naudia is a local-first CLI AI operator for Obsidian.
 
@@ -3620,7 +3979,9 @@ To provide:
 
 The first public version should make users feel:
 
+```
 My vault is no longer a pile of notes.
 It has a local assistant that can help maintain it.
+```
 
 That is the goal.
