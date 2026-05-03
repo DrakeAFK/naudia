@@ -63,6 +63,34 @@ Curl installer target:
 curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
 ```
 
+## Updating
+
+If you installed with `go install`, rerun the same command when changes are pushed:
+
+```sh
+go install github.com/drakeafk/naudia/cmd/naudia@latest
+naudia version
+```
+
+If you installed from a local checkout:
+
+```sh
+cd /path/to/naudia
+git pull
+go install ./cmd/naudia
+naudia version
+```
+
+If you installed with Homebrew:
+
+```sh
+brew update
+brew upgrade drakeafk/naudia/naudia
+naudia version
+```
+
+If you installed with the curl installer, rerun the installer command. If your shell still runs an older binary after updating, check `which naudia` and make sure the expected Go bin or Homebrew bin directory appears first in `PATH`.
+
 ## Quick Start
 
 ```sh
@@ -101,7 +129,7 @@ naudia review
 naudia proposals
 ```
 
-Use `review --no-ai` first if you want to inspect the deterministic findings before Ollama-assisted suggestions.
+Use `review --no-ai` first if you want to inspect the deterministic findings before Ollama-assisted suggestions. `naudia review` always starts from the same deterministic scan. The local AI pass only adds findings or proposals when it can add new source-grounded evidence; otherwise the findings may intentionally match `--no-ai` and the report will say that no new AI findings were added.
 
 ## Commands
 
@@ -118,6 +146,7 @@ Use `review --no-ai` first if you want to inspect the deterministic findings bef
 - `naudia structure`
 - `naudia templates`
 - `naudia doctor`
+- `naudia version`
 - `naudia proposals`
 - `naudia show <proposal-id>`
 - `naudia apply <proposal-id|all>`

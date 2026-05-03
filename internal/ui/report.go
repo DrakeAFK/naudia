@@ -11,6 +11,9 @@ func ReportView(report engines.Report) string {
 	rows := [][2]string{
 		{"Summary", report.Summary},
 	}
+	for _, detail := range report.Details {
+		rows = append(rows, [2]string{detail.Label, detail.Value})
+	}
 	if report.ReportPath != "" {
 		rows = append(rows, [2]string{"Full report", report.ReportPath})
 	}

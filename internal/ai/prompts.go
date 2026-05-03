@@ -26,7 +26,9 @@ const ReviewPrompt = `Review the vault context and return strict JSON with:
   "summary": "string",
   "issues": [{"category": "string", "severity": "low | medium | high", "description": "string", "source_notes": ["string"], "suggested_action": "string"}],
   "proposals": [{"title": "string", "type": "string", "summary": "string", "source_notes": ["string"], "risk_level": "low | medium | high"}]
-}`
+}
+
+Do not restate deterministic review findings unless you add new sourced evidence or a materially different action. If no new AI-grounded issues exist, return an empty issues array.`
 
 const DailyPrompt = `Distill the daily note and return strict JSON with:
 {

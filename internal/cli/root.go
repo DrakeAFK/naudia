@@ -68,6 +68,7 @@ func NewRootCommand() *cobra.Command {
 		structureCmd(),
 		templatesCmd(),
 		doctorCmd(),
+		versionCmd(),
 		proposalsCmd(),
 		showCmd(),
 		applyCmd(),
@@ -77,6 +78,26 @@ func NewRootCommand() *cobra.Command {
 		askCmd(),
 	)
 	return cmd
+}
+
+func versionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show Naudia version information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			info := map[string]string{
+				"name":    app.Name,
+				"version": app.Version,
+				"commit":  app.Commit,
+				"date":    app.Date,
+			}
+			if format(cmd) == "json" {
+				return writeJSON(cmd, info)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\ncommit %s\nbuilt %s\n", app.Name, app.Version, app.Commit, app.Date)
+			return nil
+		},
+	}
 }
 
 func withApp(cmd *cobra.Command, fn func(context.Context, *app.App) error) error {

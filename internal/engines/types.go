@@ -21,10 +21,16 @@ type Issue struct {
 	SuggestedAction string   `json:"suggested_action"`
 }
 
+type ReportDetail struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
 type Report struct {
-	Title      string   `json:"title"`
-	Summary    string   `json:"summary"`
-	Issues     []Issue  `json:"issues"`
-	Lines      []string `json:"lines"`
-	ReportPath string   `json:"report_path,omitempty"`
+	Title      string         `json:"title"`
+	Summary    string         `json:"summary"`
+	Details    []ReportDetail `json:"details,omitempty"`
+	Issues     []Issue        `json:"issues"`
+	Lines      []string       `json:"lines"`
+	ReportPath string         `json:"report_path,omitempty"`
 }

@@ -128,6 +128,10 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 		Title:   "Vault Review",
 		Summary: summary,
 		Issues:  issues,
+		Details: []ReportDetail{
+			{Label: "Review mode", Value: "deterministic only"},
+			{Label: "AI findings", Value: "disabled by --no-ai"},
+		},
 		Lines: []string{
 			fmt.Sprintf("Notes: %d", len(notes)),
 			fmt.Sprintf("Root notes: %d", rootNotes),
@@ -138,23 +142,43 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 	}
 	var generated []*proposals.Proposal
 	if !noAI {
+		report.Details = []ReportDetail{
+			{Label: "Review mode", Value: "deterministic plus local AI"},
+		}
 		if aiReport, err := r.aiReview(ctx, report); err == nil {
-			if strings.TrimSpace(aiReport.Summary) != "" {
-				report.Summary = aiReport.Summary
-			}
+			addedAIIssues := 0
+			repeatedAIIssues := 0
 			for _, issue := range aiReport.Issues {
-				report.Issues = append(report.Issues, Issue{
+				candidate := Issue{
 					Category:        nonEmpty(issue.Category, "AI Review"),
 					Severity:        nonEmpty(issue.Severity, "low"),
 					Description:     issue.Description,
 					SourceNotes:     issue.SourceNotes,
 					SuggestedAction: issue.SuggestedAction,
-				})
+				}
+				if strings.TrimSpace(candidate.Description) == "" {
+					continue
+				}
+				if duplicateIssue(report.Issues, candidate) {
+					repeatedAIIssues++
+					continue
+				}
+				report.Issues = append(report.Issues, candidate)
+				addedAIIssues++
+			}
+			if addedAIIssues > 0 && strings.TrimSpace(aiReport.Summary) != "" {
+				report.Summary = aiReport.Summary
 			}
 			generatedAI := r.proposalsFromAIReview(aiReport)
 			if len(generatedAI) > 0 {
 				generated = append(generated, generatedAI...)
 			}
+			report.Details = append(report.Details,
+				ReportDetail{Label: "AI findings", Value: aiFindingsDetail(addedAIIssues, repeatedAIIssues)},
+				ReportDetail{Label: "AI proposals", Value: fmt.Sprintf("%d prepared", len(generatedAI))},
+			)
+		} else {
+			report.Details = append(report.Details, ReportDetail{Label: "AI findings", Value: "unavailable; deterministic review used"})
 		}
 	}
 	report.ReportPath = r.writeReport("vault-review", renderReportMarkdown(report))
@@ -179,6 +203,19 @@ func (r Runner) Review(ctx context.Context, noAI bool, folder string) (Report, [
 		CreatedAt: time.Now().UTC(),
 	})
 	return report, generated, nil
+}
+
+func aiFindingsDetail(added, repeated int) string {
+	if added == 0 && repeated == 0 {
+		return "no new sourced findings"
+	}
+	if added == 0 {
+		return fmt.Sprintf("no new sourced findings; %d repeated deterministic findings ignored", repeated)
+	}
+	if repeated == 0 {
+		return fmt.Sprintf("%d new sourced findings", added)
+	}
+	return fmt.Sprintf("%d new sourced findings; %d repeated deterministic findings ignored", added, repeated)
 }
 
 func (r Runner) proposalsFromAIReview(out aiReviewOutput) []*proposals.Proposal {
@@ -226,6 +263,44 @@ func (r Runner) proposalsFromAIReview(out aiReviewOutput) []*proposals.Proposal 
 		})
 	}
 	return generated
+}
+
+func duplicateIssue(existing []Issue, candidate Issue) bool {
+	cat := strings.ToLower(strings.TrimSpace(candidate.Category))
+	desc := normalizeIssueText(candidate.Description)
+	for _, issue := range existing {
+		if strings.ToLower(strings.TrimSpace(issue.Category)) != cat {
+			continue
+		}
+		existingDesc := normalizeIssueText(issue.Description)
+		if existingDesc == "" || desc == "" {
+			continue
+		}
+		if desc == existingDesc || strings.Contains(desc, existingDesc) || strings.Contains(existingDesc, desc) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeIssueText(s string) string {
+	replacer := strings.NewReplacer(
+		".", " ",
+		",", " ",
+		":", " ",
+		";", " ",
+		"!", " ",
+		"?", " ",
+		"(", " ",
+		")", " ",
+		"[", " ",
+		"]", " ",
+		"{", " ",
+		"}", " ",
+	)
+	s = strings.ToLower(replacer.Replace(s))
+	s = strings.ReplaceAll(s, "suggested action", " ")
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func renderAIProposalNote(title, typ, summary string, sources []string, risk proposals.RiskLevel) string {
@@ -305,6 +380,15 @@ func (r Runner) writeReport(prefix, content string) string {
 func renderReportMarkdown(report Report) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n%s\n\n", report.Title, report.Summary)
+	if len(report.Details) > 0 {
+		b.WriteString("## Details\n\n")
+		for _, detail := range report.Details {
+			if strings.TrimSpace(detail.Label) != "" || strings.TrimSpace(detail.Value) != "" {
+				fmt.Fprintf(&b, "- **%s**: %s\n", detail.Label, detail.Value)
+			}
+		}
+		b.WriteString("\n")
+	}
 	if len(report.Issues) > 0 {
 		b.WriteString("## Findings\n\n")
 		for _, issue := range report.Issues {

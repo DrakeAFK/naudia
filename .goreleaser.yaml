@@ -8,6 +8,8 @@ builds:
     binary: naudia
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/drakeafk/naudia/internal/app.Version={{.Version}} -X github.com/drakeafk/naudia/internal/app.Commit={{.Commit}} -X github.com/drakeafk/naudia/internal/app.Date={{.Date}}
     goos:
       - darwin
       - linux
@@ -38,4 +40,3 @@ brews:
     license: MIT
     install: |
       bin.install "naudia"
-
