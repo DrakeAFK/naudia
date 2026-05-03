@@ -944,6 +944,9 @@ func showCmd() *cobra.Command {
 		Short: "Show proposal details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "all" {
+				return fmt.Errorf("show requires a specific proposal ID. Use `naudia proposals` to list all proposals")
+			}
 			id, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return err
@@ -983,6 +986,10 @@ func applyCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if len(ids) == 0 {
+					fmt.Fprintln(cmd.OutOrStdout(), "No pending proposals to apply.")
+					return nil
+				}
 				for _, id := range ids {
 					p, rec, err := pm.Load(ctx, id)
 					if err != nil {
@@ -1005,7 +1012,8 @@ func applyCmd() *cobra.Command {
 					}
 					result, err := pm.Apply(ctx, id)
 					if err != nil {
-						return err
+						fmt.Fprintf(cmd.ErrOrStderr(), "Failed to apply proposal %d: %v\n", id, err)
+						continue
 					}
 					fmt.Fprintf(cmd.OutOrStdout(), "Applied proposal %d (%d actions). Roll back with `naudia rollback %d`.\n", id, len(result.Applied), id)
 				}
@@ -1028,6 +1036,10 @@ func rejectCmd() *cobra.Command {
 				ids, err := proposalIDs(ctx, a, args[0])
 				if err != nil {
 					return err
+				}
+				if len(ids) == 0 {
+					fmt.Fprintln(cmd.OutOrStdout(), "No pending proposals to reject.")
+					return nil
 				}
 				for _, id := range ids {
 					if err := a.DB.UpdateProposalStatus(ctx, id, "rejected"); err != nil {
