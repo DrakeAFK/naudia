@@ -1184,16 +1184,20 @@ func isTerminalStdin() bool {
 }
 
 func modelAvailability(models []string, chatModel, embeddingModel string) string {
-	available := map[string]bool{}
-	for _, model := range models {
-		available[model] = true
+	hasModel := func(target string) bool {
+		for _, m := range models {
+			if m == target || m == target+":latest" || m+":latest" == target {
+				return true
+			}
+		}
+		return false
 	}
 	chat := "missing"
-	if available[chatModel] {
+	if hasModel(chatModel) {
 		chat = "available"
 	}
 	embedding := "missing"
-	if available[embeddingModel] {
+	if hasModel(embeddingModel) {
 		embedding = "available"
 	}
 	return fmt.Sprintf("%s: %s, %s: %s", chatModel, chat, embeddingModel, embedding)
