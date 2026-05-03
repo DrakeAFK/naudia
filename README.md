@@ -37,7 +37,7 @@ Naudia is built around stewardship over chat, diffs over magic, rollbacks over b
 - Structure and template analysis
 - Proposal list/show/apply/reject flow
 - Drift-aware rollback with conflict artifacts
-- SQLite index with sqlite-vec migration and Go cosine fallback
+- SQLite index with bundled sqlite-vec native KNN and Go cosine fallback
 - Ollama chat and embedding clients
 - Conservative context budgeting with `--show-context`
 - Obsidian URI helpers and optional CLI detection
@@ -82,7 +82,8 @@ naudia rollback 1
 Expected first-run notes:
 
 - `naudia scan` indexes Markdown and, when Ollama is online, stores embeddings locally.
-- `sqlite-vec` is optional. If `status` says `Vector search  Go cosine fallback`, Naudia can still use stored Ollama embeddings for semantic candidates. It only means native sqlite-vec KNN is unavailable in the local SQLite runtime.
+- Naudia bundles sqlite-vec through its SQLite runtime on supported platforms. You should not normally install sqlite-vec yourself.
+- If `status` says `Vector search  Go cosine fallback`, Naudia can still use stored Ollama embeddings for semantic candidates. It only means native sqlite-vec KNN was unavailable in that binary/runtime.
 - If `doctor` says no embeddings are stored, run `naudia scan` again after confirming Ollama is online with `naudia status`.
 - For a faster keyword-only scan, use `naudia scan --no-embeddings`.
 - Naudia creates proposals only; it does not mutate notes until `naudia apply`.
@@ -147,10 +148,10 @@ Naudia treats local model context as expensive. Exact path, title, link, folder,
 
 Semantic retrieval has two local modes:
 
-- `sqlite-vec native KNN`: used when the sqlite-vec virtual table is available.
+- `sqlite-vec native KNN`: the preferred backend. It keeps nearest-neighbor search inside SQLite, avoids loading every stored embedding into Go memory, and scales better for larger vaults.
 - `Go cosine fallback`: used when sqlite-vec is unavailable but embeddings are stored in SQLite.
 
-Both modes stay local. If there are no stored embeddings, Naudia still works with deterministic structure, links, tags, folders, and keyword search.
+Both modes use the same Ollama embeddings and stay local. sqlite-vec improves search execution and scale; it does not make the embedding model smarter. For small vaults the practical difference is usually minor. If there are no stored embeddings, Naudia still works with deterministic structure, links, tags, folders, and keyword search.
 
 Use:
 

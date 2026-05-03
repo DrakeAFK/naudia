@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite/vec"
 )
 
 //go:embed migrations/*.sql

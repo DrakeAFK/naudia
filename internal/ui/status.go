@@ -9,7 +9,10 @@ import (
 func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianURI, obsidianCLI string) string {
 	vector := "keyword search only"
 	if st.VectorAvailable {
-		vector = "sqlite-vec native KNN enabled"
+		vector = "sqlite-vec native KNN ready"
+		if st.EmbeddingsStored > 0 {
+			vector = "sqlite-vec native KNN"
+		}
 	} else if st.EmbeddingsStored > 0 {
 		vector = "Go cosine fallback"
 	}

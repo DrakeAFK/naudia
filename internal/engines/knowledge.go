@@ -30,7 +30,7 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 			fmt.Sprintf("Notes indexed: %d", status.Notes),
 			fmt.Sprintf("Database: %s", status.DatabasePath),
 			fmt.Sprintf("Embeddings stored: %d", status.EmbeddingsStored),
-			fmt.Sprintf("Semantic search: %s", semanticSearchStatus(status.VectorAvailable, status.EmbeddingsStored)),
+			fmt.Sprintf("Semantic search: %s", semanticSearchStatus(status.VectorAvailable, status.EmbeddingsStored, r.Config.Index.UseEmbeddings)),
 			fmt.Sprintf("Pending proposals: %d", status.PendingProposals),
 		},
 	}
@@ -40,20 +40,26 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
 		report.Issues = append(report.Issues, Issue{Category: "Ollama", Severity: "medium", Description: "Ollama is unavailable.", SuggestedAction: "Start Ollama and pull the configured models."})
 	}
-	if !status.VectorAvailable && r.Config.Index.UseEmbeddings && status.EmbeddingsStored == 0 {
-		report.Issues = append(report.Issues, Issue{Category: "Embeddings", Severity: "low", Description: "No stored embeddings were found. Naudia is currently using deterministic and keyword retrieval only.", SuggestedAction: "Run naudia scan after Ollama is online, or use naudia scan --no-embeddings if you want keyword-only operation."})
+	if r.Config.Index.UseEmbeddings && status.Notes > 0 && status.EmbeddingsStored == 0 {
+		report.Issues = append(report.Issues, Issue{Category: "Embeddings", Severity: "low", Description: "No stored embeddings were found. Semantic candidates are inactive until embeddings are created.", SuggestedAction: "Run naudia scan after Ollama is online, or use naudia scan --no-embeddings if keyword-only operation is intentional."})
 	}
 	return report, nil
 }
 
-func semanticSearchStatus(sqliteVec bool, embeddings int) string {
+func semanticSearchStatus(sqliteVec bool, embeddings int, useEmbeddings bool) string {
+	if !useEmbeddings {
+		return "disabled by config"
+	}
+	if embeddings == 0 {
+		if sqliteVec {
+			return "sqlite-vec native KNN ready; no stored embeddings yet"
+		}
+		return "not active; no stored embeddings yet"
+	}
 	if sqliteVec {
-		return "sqlite-vec native KNN"
+		return "sqlite-vec native KNN over stored embeddings"
 	}
-	if embeddings > 0 {
-		return "Go cosine fallback over stored embeddings"
-	}
-	return "keyword and structural retrieval only"
+	return "Go cosine fallback over stored embeddings"
 }
 
 func (r Runner) extractKnowledge(ctx context.Context, title, project string, needles []string, outputPath string, typ proposals.ProposalType) (Report, *proposals.Proposal, error) {

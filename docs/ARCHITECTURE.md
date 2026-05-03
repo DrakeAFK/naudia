@@ -21,4 +21,6 @@ Rollback never blindly restores a full file after drift. If the current file sti
 
 ## sqlite-vec
 
-The migration `002_vec.sql` attempts to create a `vec0` table. If the extension is not available in the local SQLite runtime, Naudia skips the virtual table and continues with keyword search plus Go cosine search over locally stored embedding JSON. Core indexing and proposals do not depend on sqlite-vec availability.
+Naudia imports `modernc.org/sqlite/vec`, which auto-registers sqlite-vec in supported builds. The migration `002_vec.sql` creates a `vec0` table for native KNN search, and the Go database tests verify both table creation and native vector lookup.
+
+If sqlite-vec is unavailable in a specific binary/runtime, Naudia keeps stored Ollama embeddings in SQLite and falls back to Go cosine search. The fallback uses the same embedding vectors, so result quality is comparable, but native sqlite-vec is preferred because it keeps nearest-neighbor execution inside SQLite and scales better for larger vaults. Core indexing and proposals do not depend on sqlite-vec availability.
