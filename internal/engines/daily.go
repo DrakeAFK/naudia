@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/ai"
-	"github.com/drakeafk/naudia/internal/contextpack"
-	"github.com/drakeafk/naudia/internal/obsidian"
-	"github.com/drakeafk/naudia/internal/proposals"
-	"github.com/drakeafk/naudia/internal/vault"
+	"github.com/DrakeAFK/naudia/internal/ai"
+	"github.com/DrakeAFK/naudia/internal/contextpack"
+	"github.com/DrakeAFK/naudia/internal/obsidian"
+	"github.com/DrakeAFK/naudia/internal/proposals"
+	"github.com/DrakeAFK/naudia/internal/vault"
 )
 
 type DailyResult struct {

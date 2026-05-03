@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/db"
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/db"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 func TestRollbackPreservesUnrelatedManualEdit(t *testing.T) {

@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drakeafk/naudia/internal/ai"
-	"github.com/drakeafk/naudia/internal/config"
-	"github.com/drakeafk/naudia/internal/db"
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/ai"
+	"github.com/DrakeAFK/naudia/internal/config"
+	"github.com/DrakeAFK/naudia/internal/db"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 type Options struct {

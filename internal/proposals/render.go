@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/db"
+	"github.com/DrakeAFK/naudia/internal/db"
 )
 
 func RenderList(records []db.ProposalRecord) string {

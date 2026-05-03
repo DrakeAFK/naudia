@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/proposals"
+	"github.com/DrakeAFK/naudia/internal/proposals"
 )
 
 func (r Runner) Decisions(ctx context.Context, project string) (Report, *proposals.Proposal, error) {

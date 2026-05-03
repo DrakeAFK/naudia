@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/ai"
-	"github.com/drakeafk/naudia/internal/contextpack"
-	"github.com/drakeafk/naudia/internal/proposals"
+	"github.com/DrakeAFK/naudia/internal/ai"
+	"github.com/DrakeAFK/naudia/internal/contextpack"
+	"github.com/DrakeAFK/naudia/internal/proposals"
 )
 
 type ProjectResult struct {

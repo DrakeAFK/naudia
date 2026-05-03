@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/contextpack"
-	"github.com/drakeafk/naudia/internal/obsidian"
-	"github.com/drakeafk/naudia/internal/vector"
+	"github.com/DrakeAFK/naudia/internal/contextpack"
+	"github.com/DrakeAFK/naudia/internal/obsidian"
+	"github.com/DrakeAFK/naudia/internal/vector"
 )
 
 func (r Runner) BuildContext(ctx context.Context, query string, mode string) (contextpack.Pack, error) {

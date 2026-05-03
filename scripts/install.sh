@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-repo="drakeafk/naudia"
+repo="DrakeAFK/naudia"
 bin="naudia"
 
 os="$(uname -s)"

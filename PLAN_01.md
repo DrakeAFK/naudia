@@ -258,13 +258,13 @@ The project should be easy to install.
 Target install methods:
 
 ```
-brew install drakeafk/naudia/naudia
+brew install DrakeAFK/naudia/naudia
 ```
 
 And:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/DrakeAFK/naudia/main/scripts/install.sh | sh
 ```
 
 Also provide GitHub Releases with binaries for:
@@ -3554,7 +3554,7 @@ The installation experience must be frictionless.
 Preferred:
 
 ```
-brew install drakeafk/naudia/naudia
+brew install DrakeAFK/naudia/naudia
 ```
 
 This requires:
@@ -3568,7 +3568,7 @@ This requires:
 Provide:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/DrakeAFK/naudia/main/scripts/install.sh | sh
 ```
 
 Script should:
@@ -3584,7 +3584,7 @@ Script should:
 Also support:
 
 ```
-go install github.com/drakeafk/naudia/cmd/naudia@latest
+go install github.com/DrakeAFK/naudia/cmd/naudia@latest
 ```
 
 Assuming public module path.
@@ -3868,13 +3868,13 @@ naudia
 Preferred repo:
 
 ```
-github.com/drakeafk/naudia
+github.com/DrakeAFK/naudia
 ```
 
 Preferred Homebrew:
 
 ```
-brew install drakeafk/naudia/naudia
+brew install DrakeAFK/naudia/naudia
 ```
 
 # Important Implementation Notes

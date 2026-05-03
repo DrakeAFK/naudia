@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 
-	"github.com/drakeafk/naudia/internal/db"
+	"github.com/DrakeAFK/naudia/internal/db"
 )
 
 func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianURI, obsidianCLI string) string {

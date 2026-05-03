@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DrakeAFK/naudia/internal/engines"
+	"github.com/DrakeAFK/naudia/internal/proposals"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/drakeafk/naudia/internal/engines"
-	"github.com/drakeafk/naudia/internal/proposals"
 )
 
 type issueItem struct {

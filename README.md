@@ -48,19 +48,19 @@ Naudia is built around stewardship over chat, diffs over magic, rollbacks over b
 From source:
 
 ```sh
-go install github.com/drakeafk/naudia/cmd/naudia@latest
+go install github.com/DrakeAFK/naudia/cmd/naudia@latest
 ```
 
 Homebrew target:
 
 ```sh
-brew install drakeafk/naudia/naudia
+brew install DrakeAFK/naudia/naudia
 ```
 
 Curl installer target:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/DrakeAFK/naudia/main/scripts/install.sh | sh
 ```
 
 ## Updating
@@ -68,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/drakeafk/naudia/main/scripts/instal
 If you installed with `go install`, rerun the same command when changes are pushed:
 
 ```sh
-go install github.com/drakeafk/naudia/cmd/naudia@latest
+go install github.com/DrakeAFK/naudia/cmd/naudia@latest
 naudia version
 ```
 
@@ -85,7 +85,7 @@ If you installed with Homebrew:
 
 ```sh
 brew update
-brew upgrade drakeafk/naudia/naudia
+brew upgrade DrakeAFK/naudia/naudia
 naudia version
 ```
 

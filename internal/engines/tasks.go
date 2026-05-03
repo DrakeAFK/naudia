@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drakeafk/naudia/internal/proposals"
+	"github.com/DrakeAFK/naudia/internal/proposals"
 )
 
 type TaskItem struct {

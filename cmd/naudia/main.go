@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drakeafk/naudia/internal/cli"
+	"github.com/DrakeAFK/naudia/internal/cli"
 )
 
 func main() {

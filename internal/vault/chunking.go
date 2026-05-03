@@ -3,7 +3,7 @@ package vault
 import (
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 func ChunkNote(note Note, chunkSize int, overlap int) []Chunk {

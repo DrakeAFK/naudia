@@ -3,7 +3,7 @@ package contextpack
 import (
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 func Build(items []Item, budget Budget) Pack {

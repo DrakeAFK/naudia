@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/db"
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/db"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 type RollbackResult struct {

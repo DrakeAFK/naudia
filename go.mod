@@ -1,4 +1,4 @@
-module github.com/drakeafk/naudia
+module github.com/DrakeAFK/naudia
 
 go 1.25.0
 

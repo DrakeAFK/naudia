@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/engines"
+	"github.com/DrakeAFK/naudia/internal/engines"
 )
 
 func ReportView(report engines.Report) string {

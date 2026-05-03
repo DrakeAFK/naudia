@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/util"
-	"github.com/drakeafk/naudia/internal/vault"
+	"github.com/DrakeAFK/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/vault"
 )
 
 func (d *DB) UpsertVault(ctx context.Context, name, path string, cliEnabled, uriEnabled bool) (int64, error) {

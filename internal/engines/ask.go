@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/ai"
-	"github.com/drakeafk/naudia/internal/contextpack"
+	"github.com/DrakeAFK/naudia/internal/ai"
+	"github.com/DrakeAFK/naudia/internal/contextpack"
 )
 
 type AskResult struct {

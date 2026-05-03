@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/drakeafk/naudia/internal/util"
+	"github.com/DrakeAFK/naudia/internal/util"
 )
 
 var (

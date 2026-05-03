@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DrakeAFK/naudia/internal/db"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/drakeafk/naudia/internal/db"
 )
 
 type proposalItem struct {

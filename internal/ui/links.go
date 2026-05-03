@@ -3,9 +3,9 @@ package ui
 import (
 	"fmt"
 
+	"github.com/DrakeAFK/naudia/internal/engines"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/drakeafk/naudia/internal/engines"
 )
 
 type linkItem struct {

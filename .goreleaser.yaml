@@ -9,7 +9,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w -X github.com/drakeafk/naudia/internal/app.Version={{.Version}} -X github.com/drakeafk/naudia/internal/app.Commit={{.Commit}} -X github.com/drakeafk/naudia/internal/app.Date={{.Date}}
+      - -s -w -X github.com/DrakeAFK/naudia/internal/app.Version={{.Version}} -X github.com/DrakeAFK/naudia/internal/app.Commit={{.Commit}} -X github.com/DrakeAFK/naudia/internal/app.Date={{.Date}}
     goos:
       - darwin
       - linux
@@ -33,9 +33,9 @@ checksum:
 brews:
   - name: naudia
     repository:
-      owner: drakeafk
+      owner: DrakeAFK
       name: homebrew-naudia
-    homepage: https://github.com/drakeafk/naudia
+    homepage: https://github.com/DrakeAFK/naudia
     description: Local-first AI steward for Obsidian
     license: MIT
     install: |
