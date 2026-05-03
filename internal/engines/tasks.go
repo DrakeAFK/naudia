@@ -17,7 +17,18 @@ type TaskItem struct {
 	Inferred   bool   `json:"inferred"`
 }
 
+type TaskOptions struct {
+	Project         string
+	Today           bool
+	Week            bool
+	IncludeInferred bool
+}
+
 func (r Runner) Tasks(ctx context.Context, project string) (Report, *proposals.Proposal, error) {
+	return r.TasksWithOptions(ctx, TaskOptions{Project: project})
+}
+
+func (r Runner) TasksWithOptions(ctx context.Context, opts TaskOptions) (Report, *proposals.Proposal, error) {
 	rows, err := r.Store.SQL.QueryContext(ctx, `
 		SELECT n.path, t.text, t.completed, COALESCE(t.line_number, 0), t.inferred
 		FROM tasks t
@@ -30,6 +41,14 @@ func (r Runner) Tasks(ctx context.Context, project string) (Report, *proposals.P
 	}
 	defer rows.Close()
 	var tasks []TaskItem
+	cutoffPath := ""
+	if opts.Today || opts.Week {
+		days := 0
+		if opts.Week {
+			days = 6
+		}
+		cutoffPath = strings.Trim(r.Config.Daily.Folder, "/") + "/" + time.Now().AddDate(0, 0, -days).Format(r.Config.Daily.DateFormat)
+	}
 	for rows.Next() {
 		var t TaskItem
 		var completed, inferred int
@@ -38,11 +57,33 @@ func (r Runner) Tasks(ctx context.Context, project string) (Report, *proposals.P
 		}
 		t.Completed = completed == 1
 		t.Inferred = inferred == 1
-		if project == "" || strings.Contains(strings.ToLower(t.Text+" "+t.NotePath), strings.ToLower(project)) {
+		if cutoffPath != "" && !strings.HasPrefix(t.NotePath, strings.Trim(r.Config.Daily.Folder, "/")+"/") {
+			continue
+		}
+		if cutoffPath != "" && t.NotePath < cutoffPath {
+			continue
+		}
+		if opts.Project == "" || strings.Contains(strings.ToLower(t.Text+" "+t.NotePath), strings.ToLower(opts.Project)) {
 			tasks = append(tasks, t)
 		}
 	}
-	report := Report{Title: "Tasks", Summary: fmt.Sprintf("Naudia found %d explicit Markdown tasks.", len(tasks))}
+	if opts.IncludeInferred {
+		inferred, err := r.inferTasks(ctx, opts, cutoffPath)
+		if err != nil {
+			return Report{}, nil, err
+		}
+		tasks = append(tasks, inferred...)
+	}
+	explicitCount := 0
+	inferredCount := 0
+	for _, task := range tasks {
+		if task.Inferred {
+			inferredCount++
+		} else {
+			explicitCount++
+		}
+	}
+	report := Report{Title: "Tasks", Summary: fmt.Sprintf("Naudia found %d explicit and %d inferred tasks.", explicitCount, inferredCount)}
 	for _, task := range tasks {
 		state := "open"
 		if task.Completed {
@@ -75,4 +116,34 @@ func (r Runner) Tasks(ctx context.Context, project string) (Report, *proposals.P
 		CreatedAt: time.Now().UTC(),
 	}
 	return report, proposal, rows.Err()
+}
+
+func (r Runner) inferTasks(ctx context.Context, opts TaskOptions, cutoffPath string) ([]TaskItem, error) {
+	chunks, err := r.Store.ListChunks(ctx, r.VaultID)
+	if err != nil {
+		return nil, err
+	}
+	var inferred []TaskItem
+	for _, chunk := range chunks {
+		if cutoffPath != "" && (!strings.HasPrefix(chunk.NotePath, strings.Trim(r.Config.Daily.Folder, "/")+"/") || chunk.NotePath < cutoffPath) {
+			continue
+		}
+		if opts.Project != "" && !strings.Contains(strings.ToLower(chunk.NotePath+" "+chunk.Content), strings.ToLower(opts.Project)) {
+			continue
+		}
+		for _, line := range strings.Split(chunk.Content, "\n") {
+			trim := strings.TrimSpace(line)
+			lower := strings.ToLower(trim)
+			if trim == "" || strings.HasPrefix(trim, "- [") {
+				continue
+			}
+			if strings.Contains(lower, "need to ") || strings.Contains(lower, "should ") || strings.Contains(lower, "todo:") || strings.Contains(lower, "follow up") {
+				inferred = append(inferred, TaskItem{NotePath: chunk.NotePath, Text: strings.TrimPrefix(trim, "- "), Inferred: true})
+			}
+			if len(inferred) >= 50 {
+				return inferred, nil
+			}
+		}
+	}
+	return inferred, nil
 }

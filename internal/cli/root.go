@@ -339,6 +339,7 @@ func scanVault(ctx context.Context, a *app.App, opts scanOptions) (db.ScanStats,
 func reviewCmd() *cobra.Command {
 	var noAI, interactive bool
 	var folder string
+	var today, week, templatesFocus, orphansFocus, tasksFocus, structureFocus bool
 	cmd := &cobra.Command{
 		Use:   "review",
 		Short: "Review vault health and prepare proposals",
@@ -349,9 +350,54 @@ func reviewCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				report, props, err := r.Review(ctx, noAI, folder)
+				reviewFolder := folder
+				if today || week {
+					reviewFolder = strings.Trim(a.Config.Daily.Folder, "/")
+				}
+				if templatesFocus {
+					reviewFolder = "Templates"
+				}
+				report, props, err := r.Review(ctx, noAI, reviewFolder)
 				if err != nil {
 					return err
+				}
+				if orphansFocus {
+					orphans, err := r.OrphanNotes(ctx)
+					if err != nil {
+						return err
+					}
+					report.Title = "Orphan Notes Review"
+					report.Lines = append(report.Lines, orphans...)
+				}
+				if tasksFocus {
+					taskReport, _, err := r.TasksWithOptions(ctx, engines.TaskOptions{Week: week, Today: today})
+					if err != nil {
+						return err
+					}
+					report.Issues = append(report.Issues, taskReport.Issues...)
+					report.Lines = append(report.Lines, taskReport.Lines...)
+				}
+				if structureFocus {
+					structureReport, structureProp, err := r.Structure(ctx, true)
+					if err != nil {
+						return err
+					}
+					report.Issues = append(report.Issues, structureReport.Issues...)
+					report.Lines = append(report.Lines, structureReport.Lines...)
+					if structureProp != nil {
+						props = append(props, structureProp)
+					}
+				}
+				if templatesFocus {
+					templateReport, templateProp, err := r.Templates(ctx, "Templates")
+					if err != nil {
+						return err
+					}
+					report.Issues = append(report.Issues, templateReport.Issues...)
+					report.Lines = append(report.Lines, templateReport.Lines...)
+					if templateProp != nil {
+						props = append(props, templateProp)
+					}
 				}
 				pm, err := proposalManager(ctx, a)
 				if err != nil {
@@ -379,18 +425,18 @@ func reviewCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noAI, "no-ai", false, "use deterministic review only")
 	cmd.Flags().BoolVar(&interactive, "interactive", false, "open interactive review UI")
 	cmd.Flags().StringVar(&folder, "folder", "", "review a folder")
-	cmd.Flags().Bool("today", false, "focus today's notes")
-	cmd.Flags().Bool("week", false, "focus this week")
-	cmd.Flags().Bool("templates", false, "focus templates")
-	cmd.Flags().Bool("orphans", false, "focus orphan notes")
-	cmd.Flags().Bool("tasks", false, "focus tasks")
-	cmd.Flags().Bool("structure", false, "focus structure")
+	cmd.Flags().BoolVar(&today, "today", false, "focus today's notes")
+	cmd.Flags().BoolVar(&week, "week", false, "focus this week")
+	cmd.Flags().BoolVar(&templatesFocus, "templates", false, "focus templates")
+	cmd.Flags().BoolVar(&orphansFocus, "orphans", false, "focus orphan notes")
+	cmd.Flags().BoolVar(&tasksFocus, "tasks", false, "focus tasks")
+	cmd.Flags().BoolVar(&structureFocus, "structure", false, "focus structure")
 	return cmd
 }
 
 func dailyCmd() *cobra.Command {
 	var dateText string
-	var apply, showContext, interactive bool
+	var apply, showContext, interactive, week, createPermanentNotes, moveTasks bool
 	cmd := &cobra.Command{
 		Use:   "daily",
 		Short: "Distill a daily note",
@@ -401,7 +447,13 @@ func dailyCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				result, err := r.Daily(ctx, dateText, showContext)
+				result, err := r.DailyWithOptions(ctx, engines.DailyOptions{
+					Date:                 dateText,
+					Week:                 week,
+					CreatePermanentNotes: createPermanentNotes,
+					MoveTasks:            moveTasks,
+					ShowContext:          showContext,
+				})
 				if err != nil {
 					return err
 				}
@@ -441,9 +493,9 @@ func dailyCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated proposal")
 	cmd.Flags().BoolVar(&showContext, "show-context", false, "show selected context")
 	cmd.Flags().BoolVar(&interactive, "interactive", false, "open interactive daily UI")
-	cmd.Flags().Bool("week", false, "distill the current week")
-	cmd.Flags().Bool("create-permanent-notes", false, "propose permanent notes")
-	cmd.Flags().Bool("move-tasks", false, "propose task moves")
+	cmd.Flags().BoolVar(&week, "week", false, "distill the current week")
+	cmd.Flags().BoolVar(&createPermanentNotes, "create-permanent-notes", false, "propose permanent notes")
+	cmd.Flags().BoolVar(&moveTasks, "move-tasks", false, "propose task moves")
 	return cmd
 }
 
@@ -461,12 +513,13 @@ func projectCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				result, err := r.Project(ctx, args[0])
+				result, err := r.ProjectWithOptions(ctx, args[0], engines.ProjectOptions{
+					Folder:   folder,
+					Generate: splitCSV(generate),
+				})
 				if err != nil {
 					return err
 				}
-				_ = folder
-				_ = generate
 				pm, err := proposalManager(ctx, a)
 				if err != nil {
 					return err
@@ -572,7 +625,7 @@ func linksCmd() *cobra.Command {
 
 func tasksCmd() *cobra.Command {
 	var project string
-	var apply bool
+	var apply, today, week, includeInferred bool
 	cmd := &cobra.Command{
 		Use:   "tasks",
 		Short: "Extract and group tasks",
@@ -583,7 +636,12 @@ func tasksCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				report, prop, err := r.Tasks(ctx, project)
+				report, prop, err := r.TasksWithOptions(ctx, engines.TaskOptions{
+					Project:         project,
+					Today:           today,
+					Week:            week,
+					IncludeInferred: includeInferred,
+				})
 				if err != nil {
 					return err
 				}
@@ -611,9 +669,9 @@ func tasksCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&project, "project", "", "filter by project")
 	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated proposal")
-	cmd.Flags().Bool("today", false, "focus today")
-	cmd.Flags().Bool("week", false, "focus week")
-	cmd.Flags().Bool("include-inferred", false, "include inferred tasks")
+	cmd.Flags().BoolVar(&today, "today", false, "focus today")
+	cmd.Flags().BoolVar(&week, "week", false, "focus week")
+	cmd.Flags().BoolVar(&includeInferred, "include-inferred", false, "include inferred tasks")
 	return cmd
 }
 
@@ -749,6 +807,9 @@ func structureCmd() *cobra.Command {
 					_, err := tea.NewProgram(ui.NewReviewModel(report, nil)).Run()
 					return err
 				}
+				if format(cmd) == "json" {
+					return writeJSON(cmd, map[string]any{"report": report, "proposal_id": id})
+				}
 				fmt.Fprintln(cmd.OutOrStdout(), ui.ReportView(report))
 				if id > 0 {
 					fmt.Fprintf(cmd.OutOrStdout(), "\nProposal %d prepared.\n", id)
@@ -765,14 +826,18 @@ func structureCmd() *cobra.Command {
 
 func templatesCmd() *cobra.Command {
 	var folder string
-	var apply bool
+	var apply, projectOnly, dailyOnly bool
 	cmd := &cobra.Command{
 		Use:   "templates",
 		Short: "Analyze and improve templates",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return withApp(cmd, func(ctx context.Context, a *app.App) error {
 				r, _ := runner(ctx, a)
-				report, prop, err := r.Templates(ctx, folder)
+				report, prop, err := r.TemplatesWithOptions(ctx, engines.TemplateOptions{
+					Folder:      folder,
+					ProjectOnly: projectOnly,
+					DailyOnly:   dailyOnly,
+				})
 				if err != nil {
 					return err
 				}
@@ -789,6 +854,9 @@ func templatesCmd() *cobra.Command {
 						}
 					}
 				}
+				if format(cmd) == "json" {
+					return writeJSON(cmd, map[string]any{"report": report, "proposal_id": id})
+				}
 				fmt.Fprintln(cmd.OutOrStdout(), ui.ReportView(report))
 				if id > 0 {
 					fmt.Fprintf(cmd.OutOrStdout(), "\nProposal %d prepared.\n", id)
@@ -799,8 +867,8 @@ func templatesCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&folder, "folder", "Templates", "template folder")
 	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated proposal")
-	cmd.Flags().Bool("project", false, "focus project template")
-	cmd.Flags().Bool("daily", false, "focus daily template")
+	cmd.Flags().BoolVar(&projectOnly, "project", false, "focus project template")
+	cmd.Flags().BoolVar(&dailyOnly, "daily", false, "focus daily template")
 	return cmd
 }
 
@@ -1109,6 +1177,17 @@ func enabledDisabled(v bool) string {
 		return "enabled"
 	}
 	return "disabled"
+}
+
+func splitCSV(value string) []string {
+	var out []string
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func riskMessage(p *proposals.Proposal, yes bool) string {

@@ -17,15 +17,30 @@ type ProjectResult struct {
 	Proposal *proposals.Proposal `json:"proposal,omitempty"`
 }
 
+type ProjectOptions struct {
+	Folder   string
+	Generate []string
+}
+
 func (r Runner) Project(ctx context.Context, name string) (ProjectResult, error) {
+	return r.ProjectWithOptions(ctx, name, ProjectOptions{})
+}
+
+func (r Runner) ProjectWithOptions(ctx context.Context, name string, opts ProjectOptions) (ProjectResult, error) {
 	pack, err := r.BuildContext(ctx, name, "project")
 	if err != nil {
 		return ProjectResult{}, err
 	}
 	folder := "Projects/" + safeName(name)
+	if strings.TrimSpace(opts.Folder) != "" {
+		folder = strings.Trim(strings.ReplaceAll(opts.Folder, "\\", "/"), "/")
+	}
 	files := r.projectFilesFromAI(ctx, name, folder, pack)
 	if len(files) == 0 {
 		files = deterministicProjectFiles(name, folder, pack)
+	}
+	if filtered := filterProjectFiles(files, opts.Generate); len(filtered) > 0 {
+		files = filtered
 	}
 	var actions []proposals.ProposalAction
 	for path, content := range files {
@@ -44,10 +59,48 @@ func (r Runner) Project(ctx context.Context, name string) (ProjectResult, error)
 		RiskLevel: proposals.RiskLow,
 		CreatedAt: time.Now().UTC(),
 	}
+	seenSources := map[string]bool{}
 	for _, item := range pack.Items {
+		if seenSources[item.NotePath] {
+			continue
+		}
+		seenSources[item.NotePath] = true
 		proposal.SourceNotes = append(proposal.SourceNotes, proposals.SourceNote{Path: item.NotePath, ObsidianURI: item.ObsidianURI, Reason: item.Reason})
 	}
 	return ProjectResult{Name: name, Context: pack, Proposal: proposal}, nil
+}
+
+func filterProjectFiles(files map[string]string, generate []string) map[string]string {
+	if len(generate) == 0 {
+		return files
+	}
+	allowed := map[string]bool{}
+	for _, item := range generate {
+		item = strings.ToLower(strings.TrimSpace(item))
+		item = strings.TrimSuffix(item, ".md")
+		if item != "" {
+			allowed[item] = true
+		}
+	}
+	if len(allowed) == 0 {
+		return files
+	}
+	out := map[string]string{}
+	for path, content := range files {
+		base := strings.ToLower(strings.TrimSuffix(filepathBase(path), ".md"))
+		if allowed[base] {
+			out[path] = content
+		}
+	}
+	return out
+}
+
+func filepathBase(path string) string {
+	path = strings.TrimRight(strings.ReplaceAll(path, "\\", "/"), "/")
+	if idx := strings.LastIndex(path, "/"); idx >= 0 {
+		return path[idx+1:]
+	}
+	return path
 }
 
 func (r Runner) projectFilesFromAI(ctx context.Context, name, folder string, pack contextpack.Pack) map[string]string {
@@ -100,6 +153,7 @@ func deterministicProjectFiles(name, folder string, pack contextpack.Pack) map[s
 		folder + "/TODO.md":      todo,
 		folder + "/DECISIONS.md": decisions,
 		folder + "/QUESTIONS.md": questions,
+		folder + "/CHANGELOG.md": "# " + name + " Changelog\n\n- Created project memory index from selected vault context.\n",
 		folder + "/CONTEXT.md":   "# " + name + " Context\n\n" + contextText + "\n",
 	}
 }

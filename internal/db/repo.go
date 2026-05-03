@@ -457,6 +457,29 @@ func (d *DB) CompleteApplyJournal(ctx context.Context, id int64, status string, 
 	return err
 }
 
+func (d *DB) ListApplyJournal(ctx context.Context, proposalID int64) ([]ApplyJournalRecord, error) {
+	rows, err := d.SQL.QueryContext(ctx, `
+		SELECT id, proposal_id, action_id, note_path, action_kind, planned_change_json, status, created_at,
+		       COALESCE(completed_at, ''), COALESCE(error, '')
+		FROM apply_journal
+		WHERE proposal_id = ?
+		ORDER BY id ASC
+	`, proposalID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ApplyJournalRecord
+	for rows.Next() {
+		var rec ApplyJournalRecord
+		if err := rows.Scan(&rec.ID, &rec.ProposalID, &rec.ActionID, &rec.NotePath, &rec.ActionKind, &rec.PlannedChangeJSON, &rec.Status, &rec.CreatedAt, &rec.CompletedAt, &rec.Error); err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
 func (d *DB) ListChanges(ctx context.Context, proposalID int64) ([]ChangeRecord, error) {
 	rows, err := d.SQL.QueryContext(ctx, `
 		SELECT id, proposal_id, action_id, note_path, action_kind, COALESCE(before_hash, ''), COALESCE(after_hash, ''),

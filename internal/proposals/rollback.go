@@ -31,6 +31,10 @@ func (m Manager) Rollback(ctx context.Context, proposalID int64, force bool) (Ro
 	if err != nil {
 		return RollbackResult{}, err
 	}
+	changes, err = m.mergeJournalChanges(ctx, proposalID, changes)
+	if err != nil {
+		return RollbackResult{}, err
+	}
 	result := RollbackResult{ProposalID: proposalID, Forced: force}
 	for i := len(changes) - 1; i >= 0; i-- {
 		change, err := changeFromRecord(changes[i])
@@ -55,6 +59,34 @@ func (m Manager) Rollback(ctx context.Context, proposalID int64, force bool) (Ro
 		return result, err
 	}
 	return result, nil
+}
+
+func (m Manager) mergeJournalChanges(ctx context.Context, proposalID int64, changes []db.ChangeRecord) ([]db.ChangeRecord, error) {
+	journals, err := m.Store.ListApplyJournal(ctx, proposalID)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	for _, change := range changes {
+		seen[change.ActionID+"|"+change.NotePath] = true
+	}
+	for _, journal := range journals {
+		key := journal.ActionID + "|" + journal.NotePath
+		if seen[key] {
+			continue
+		}
+		if journal.Status != "applied" && journal.Status != "db_record_failed" {
+			continue
+		}
+		var rec db.ChangeRecord
+		if err := json.Unmarshal([]byte(journal.PlannedChangeJSON), &rec); err != nil {
+			return nil, err
+		}
+		rec.ID = -journal.ID
+		rec.ProposalID = proposalID
+		changes = append(changes, rec)
+	}
+	return changes, nil
 }
 
 func (m Manager) rollbackChange(ctx context.Context, change Change, force bool) error {

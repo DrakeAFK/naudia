@@ -28,12 +28,31 @@ func (r Runner) Structure(ctx context.Context, propose bool) (Report, *proposals
 		folders[dir]++
 	}
 	report := Report{Title: "Structure", Summary: fmt.Sprintf("Naudia analyzed %d notes across %d folders.", len(notes), len(folders))}
+	inconsistentNames := 0
+	staleNotes := 0
+	now := time.Now()
 	for folder, count := range folders {
 		report.Lines = append(report.Lines, fmt.Sprintf("%s: %d notes", folder, count))
+	}
+	for _, note := range notes {
+		if hasInconsistentName(note.Path) {
+			inconsistentNames++
+		}
+		if t, err := time.Parse(time.RFC3339, note.ModifiedAt); err == nil && now.Sub(t) > 180*24*time.Hour {
+			staleNotes++
+		}
 	}
 	if len(root) > 0 {
 		report.Issues = append(report.Issues, Issue{Category: "Structure", Severity: "medium", Description: fmt.Sprintf("%d notes are at the vault root.", len(root)), SuggestedAction: "Move root capture notes into 00 Inbox after review."})
 	}
+	if inconsistentNames > 0 {
+		report.Issues = append(report.Issues, Issue{Category: "Naming", Severity: "low", Description: fmt.Sprintf("%d notes use spaces, uppercase extensions, or mixed separators.", inconsistentNames), SuggestedAction: "Standardize names only where predictable automation matters; avoid bulk renames without review."})
+	}
+	if staleNotes > 0 {
+		report.Issues = append(report.Issues, Issue{Category: "Lifecycle", Severity: "low", Description: fmt.Sprintf("%d notes have not changed in more than 180 days.", staleNotes), SuggestedAction: "Review whether stale notes should be archived, linked, or left untouched."})
+	}
+	mixed := r.mixedFolderIssues(ctx)
+	report.Issues = append(report.Issues, mixed...)
 	if aiStructure, err := r.aiStructure(ctx, report); err == nil {
 		if strings.TrimSpace(aiStructure.Summary) != "" {
 			report.Summary = aiStructure.Summary
@@ -107,7 +126,18 @@ func (r Runner) aiStructure(ctx context.Context, deterministic Report) (aiStruct
 	return out, nil
 }
 
+type TemplateOptions struct {
+	Folder      string
+	ProjectOnly bool
+	DailyOnly   bool
+}
+
 func (r Runner) Templates(ctx context.Context, folder string) (Report, *proposals.Proposal, error) {
+	return r.TemplatesWithOptions(ctx, TemplateOptions{Folder: folder})
+}
+
+func (r Runner) TemplatesWithOptions(ctx context.Context, opts TemplateOptions) (Report, *proposals.Proposal, error) {
+	folder := opts.Folder
 	if folder == "" {
 		folder = "Templates"
 	}
@@ -116,12 +146,29 @@ func (r Runner) Templates(ctx context.Context, folder string) (Report, *proposal
 		"Project.md":  "# Project\n\n## Goal\n\n## Context\n\n## Tasks\n\n## Decisions\n",
 		"Decision.md": "# Decision\n\n## Context\n\n## Decision\n\n## Consequences\n",
 	}
+	if opts.ProjectOnly {
+		required = map[string]string{"Project.md": required["Project.md"]}
+	}
+	if opts.DailyOnly {
+		required = map[string]string{"Daily.md": required["Daily.md"]}
+	}
 	report := Report{Title: "Templates", Summary: "Naudia checked expected starter templates."}
 	var actions []proposals.ProposalAction
 	for name, content := range required {
 		path := filepath.ToSlash(filepath.Join(folder, name))
-		if _, _, err := readVaultFile(r.Config.Vault.Path, path); err == nil {
+		if existing, hash, err := readVaultFile(r.Config.Vault.Path, path); err == nil {
 			report.Lines = append(report.Lines, path+" exists")
+			missing := missingTemplateHeadings(name, existing)
+			for _, heading := range missing {
+				report.Issues = append(report.Issues, Issue{Category: "Templates", Severity: "low", Description: path + " is missing " + heading + ".", SuggestedAction: "Append the missing heading without rewriting the existing template."})
+				actions = append(actions, proposals.ProposalAction{
+					ID:           "append-" + strings.ToLower(strings.Trim(heading, "# ")),
+					Kind:         proposals.ActionAppendToNote,
+					Path:         path,
+					Content:      "\n" + heading + "\n",
+					ExpectedHash: hash,
+				})
+			}
 			continue
 		}
 		report.Issues = append(report.Issues, Issue{Category: "Templates", Severity: "low", Description: path + " is missing.", SuggestedAction: "Create a small starter template."})
@@ -138,4 +185,53 @@ func (r Runner) Templates(ctx context.Context, folder string) (Report, *proposal
 		RiskLevel: proposals.RiskMedium,
 		CreatedAt: time.Now().UTC(),
 	}, nil
+}
+
+func hasInconsistentName(path string) bool {
+	base := filepath.Base(path)
+	return strings.Contains(base, "  ") || strings.Contains(base, "_") || filepath.Ext(base) != ".md"
+}
+
+func (r Runner) mixedFolderIssues(ctx context.Context) []Issue {
+	rows, err := r.Store.SQL.QueryContext(ctx, `
+		SELECT substr(n.path, 1, CASE WHEN instr(n.path, '/') = 0 THEN length(n.path) ELSE instr(n.path, '/') - 1 END) AS folder,
+		       SUM(CASE WHEN t.id IS NOT NULL THEN 1 ELSE 0 END) AS task_notes,
+		       SUM(CASE WHEN lower(n.path) LIKE '%template%' THEN 1 ELSE 0 END) AS template_notes,
+		       COUNT(DISTINCT n.id) AS total
+		FROM notes n
+		LEFT JOIN tasks t ON t.note_id = n.id AND t.completed = 0
+		WHERE n.vault_id = ?
+		GROUP BY folder
+	`, r.VaultID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var issues []Issue
+	for rows.Next() {
+		var folder string
+		var taskNotes, templateNotes, total int
+		if err := rows.Scan(&folder, &taskNotes, &templateNotes, &total); err != nil {
+			return issues
+		}
+		if total >= 5 && taskNotes > 0 && templateNotes > 0 {
+			issues = append(issues, Issue{Category: "Structure", Severity: "low", Description: fmt.Sprintf("%s mixes templates and task-heavy notes.", folder), SuggestedAction: "Consider separating reusable templates from active work notes."})
+		}
+	}
+	return issues
+}
+
+func missingTemplateHeadings(name, content string) []string {
+	expected := map[string][]string{
+		"Daily.md":    {"## Notes", "## Tasks", "## Decisions"},
+		"Project.md":  {"## Goal", "## Context", "## Tasks", "## Decisions"},
+		"Decision.md": {"## Context", "## Decision", "## Consequences"},
+	}
+	var missing []string
+	for _, heading := range expected[name] {
+		if !strings.Contains(strings.ToLower(content), strings.ToLower(heading)) {
+			missing = append(missing, heading)
+		}
+	}
+	return missing
 }

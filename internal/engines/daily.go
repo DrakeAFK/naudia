@@ -22,9 +22,25 @@ type DailyResult struct {
 	Proposal   *proposals.Proposal `json:"proposal,omitempty"`
 }
 
+type DailyOptions struct {
+	Date                 string
+	Week                 bool
+	CreatePermanentNotes bool
+	MoveTasks            bool
+	ShowContext          bool
+}
+
 func (r Runner) Daily(ctx context.Context, dateText string, showContext bool) (DailyResult, error) {
+	return r.DailyWithOptions(ctx, DailyOptions{Date: dateText, ShowContext: showContext})
+}
+
+func (r Runner) DailyWithOptions(ctx context.Context, opts DailyOptions) (DailyResult, error) {
+	dateText := opts.Date
 	if dateText == "" {
 		dateText = time.Now().Format(r.Config.Daily.DateFormat)
+	}
+	if opts.Week {
+		return r.dailyWeek(ctx, dateText, opts)
 	}
 	source := filepath.ToSlash(filepath.Join(r.Config.Daily.Folder, dateText+".md"))
 	content, hash, err := readVaultFile(r.Config.Vault.Path, source)
@@ -60,7 +76,125 @@ func (r Runner) Daily(ctx context.Context, dateText string, showContext bool) (D
 		RiskLevel: proposals.RiskLow,
 		CreatedAt: time.Now().UTC(),
 	}
+	if opts.CreatePermanentNotes {
+		proposal.Actions = append(proposal.Actions, permanentNoteActionsFromDaily(dateText, note)...)
+	}
+	if opts.MoveTasks {
+		taskAction, err := r.dailyTaskAction(dateText, note)
+		if err != nil {
+			return DailyResult{}, err
+		}
+		if taskAction != nil {
+			proposal.Actions = append(proposal.Actions, *taskAction)
+		}
+	}
 	return DailyResult{Date: dateText, SourceNote: source, Review: review, Context: pack, Proposal: proposal}, nil
+}
+
+func (r Runner) dailyWeek(ctx context.Context, endDateText string, opts DailyOptions) (DailyResult, error) {
+	end, err := time.Parse(r.Config.Daily.DateFormat, endDateText)
+	if err != nil {
+		return DailyResult{}, err
+	}
+	var reviews []string
+	var sources []proposals.SourceNote
+	var actions []proposals.ProposalAction
+	for i := 6; i >= 0; i-- {
+		date := end.AddDate(0, 0, -i).Format(r.Config.Daily.DateFormat)
+		source := filepath.ToSlash(filepath.Join(r.Config.Daily.Folder, date+".md"))
+		content, hash, err := readVaultFile(r.Config.Vault.Path, source)
+		if err != nil {
+			continue
+		}
+		note := vault.ParseNote(source, filepath.Join(r.Config.Vault.Path, filepath.FromSlash(source)), content)
+		review := buildDailyReview(date, source, note)
+		reviews = append(reviews, review)
+		sources = append(sources, proposals.SourceNote{Path: source, ObsidianURI: obsidian.BuildOpenNoteURI(r.Config.Vault.Name, source), Reason: "Daily note included in weekly distillation."})
+		actions = append(actions, proposals.ProposalAction{
+			ID:           "append-daily-review-" + date,
+			Kind:         proposals.ActionAppendToNote,
+			Path:         source,
+			Content:      "\n## Naudia Review\n\n" + review + "\n",
+			ExpectedHash: hash,
+		})
+		if opts.CreatePermanentNotes {
+			actions = append(actions, permanentNoteActionsFromDaily(date, note)...)
+		}
+		if opts.MoveTasks {
+			if taskAction, err := r.dailyTaskAction(date, note); err == nil && taskAction != nil {
+				actions = append(actions, *taskAction)
+			}
+		}
+	}
+	if len(actions) == 0 {
+		return DailyResult{}, fmt.Errorf("no daily notes found for week ending %s", endDateText)
+	}
+	pack, err := r.BuildContext(ctx, endDateText, "daily")
+	if err != nil {
+		return DailyResult{}, err
+	}
+	weekly := "# Weekly Daily Review - week ending " + endDateText + "\n\n" + strings.Join(reviews, "\n\n---\n\n")
+	proposal := &proposals.Proposal{
+		Type:        proposals.TypeDailyDistillation,
+		Title:       "Distill daily notes for week ending " + endDateText,
+		Summary:     "Append sourced daily reviews for each daily note found in the selected week.",
+		SourceNotes: sources,
+		Actions:     actions,
+		RiskLevel:   proposals.RiskMedium,
+		CreatedAt:   time.Now().UTC(),
+	}
+	return DailyResult{Date: endDateText, SourceNote: strings.TrimSuffix(r.Config.Daily.Folder, "/") + "/*", Review: weekly, Context: pack, Proposal: proposal}, nil
+}
+
+func permanentNoteActionsFromDaily(dateText string, note vault.Note) []proposals.ProposalAction {
+	var actions []proposals.ProposalAction
+	for i, line := range strings.Split(note.Content, "\n") {
+		trim := strings.TrimSpace(line)
+		lower := strings.ToLower(trim)
+		if !strings.Contains(lower, "idea") && !strings.Contains(lower, "decided") && !strings.Contains(lower, "decision:") {
+			continue
+		}
+		title := strings.Trim(strings.TrimPrefix(strings.TrimPrefix(trim, "Idea:"), "Decision:"), " .")
+		if title == "" {
+			title = fmt.Sprintf("Daily note insight %s %d", dateText, i+1)
+		}
+		if len(title) > 60 {
+			title = title[:60]
+		}
+		path := filepath.ToSlash(filepath.Join("Notes", slugify(title)+".md"))
+		content := fmt.Sprintf("# %s\n\n%s\n\nSource: [[%s]]\n", title, trim, strings.TrimSuffix(note.Path, ".md"))
+		actions = append(actions, proposals.ProposalAction{
+			ID:      fmt.Sprintf("create-permanent-note-%d", len(actions)+1),
+			Kind:    proposals.ActionCreateNote,
+			Path:    path,
+			Content: content,
+		})
+		if len(actions) >= 5 {
+			break
+		}
+	}
+	return actions
+}
+
+func (r Runner) dailyTaskAction(dateText string, note vault.Note) (*proposals.ProposalAction, error) {
+	var taskLines []string
+	for _, task := range note.Tasks {
+		if task.Completed {
+			continue
+		}
+		taskLines = append(taskLines, fmt.Sprintf("- [ ] %s (source: [[%s]])", task.Text, strings.TrimSuffix(note.Path, ".md")))
+	}
+	if len(taskLines) == 0 {
+		return nil, nil
+	}
+	target := "Tasks/Inbox.md"
+	_, hash, err := readVaultFile(r.Config.Vault.Path, target)
+	if err != nil {
+		content := "# Task Inbox\n\n" + strings.Join(taskLines, "\n") + "\n"
+		return &proposals.ProposalAction{ID: "create-task-inbox-" + dateText, Kind: proposals.ActionCreateNote, Path: target, Content: content}, nil
+	}
+	content := "\n## " + dateText + "\n" + strings.Join(taskLines, "\n") + "\n"
+	return &proposals.ProposalAction{ID: "append-task-inbox-" + dateText, Kind: proposals.ActionAppendToNote, Path: target, Content: content, ExpectedHash: hash}, nil
 }
 
 func (r Runner) aiDaily(ctx context.Context, dateText, source, content string, pack contextpack.Pack) (string, error) {
@@ -230,6 +364,9 @@ func firstMeaningfulLines(content string, max int) []string {
 			continue
 		}
 		if strings.HasPrefix(trim, "#") {
+			continue
+		}
+		if strings.HasPrefix(trim, "- [") {
 			continue
 		}
 		out = append(out, "- "+trim)

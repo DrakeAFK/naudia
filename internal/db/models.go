@@ -83,3 +83,16 @@ type ConflictRecord struct {
 	ConflictJSON string
 	CreatedAt    string
 }
+
+type ApplyJournalRecord struct {
+	ID                int64
+	ProposalID        int64
+	ActionID          string
+	NotePath          string
+	ActionKind        string
+	PlannedChangeJSON string
+	Status            string
+	CreatedAt         string
+	CompletedAt       string
+	Error             string
+}
