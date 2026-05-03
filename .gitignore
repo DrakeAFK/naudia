@@ -1,0 +1,8 @@
+.DS_Store
+/.naudia/
+/dist/
+/naudia
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+

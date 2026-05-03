@@ -1,0 +1,6 @@
+# Daily Note
+
+## Notes
+
+## Tasks
+

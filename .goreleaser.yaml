@@ -1,0 +1,41 @@
+version: 2
+
+project_name: naudia
+
+builds:
+  - id: naudia
+    main: ./cmd/naudia
+    binary: naudia
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+brews:
+  - name: naudia
+    repository:
+      owner: drakeafk
+      name: homebrew-naudia
+    homepage: https://github.com/drakeafk/naudia
+    description: Local-first AI steward for Obsidian
+    license: MIT
+    install: |
+      bin.install "naudia"
+
