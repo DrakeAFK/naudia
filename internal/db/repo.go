@@ -46,6 +46,12 @@ func (d *DB) Status(ctx context.Context, vaultPath string) (Status, error) {
 	}
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM notes WHERE vault_id = ?`, st.VaultID).Scan(&st.Notes)
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COALESCE(MAX(indexed_at), '') FROM notes WHERE vault_id = ?`, st.VaultID).Scan(&st.LastScan)
+	_ = d.SQL.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM embeddings e
+		JOIN notes n ON n.id = e.note_id
+		WHERE n.vault_id = ?
+	`, st.VaultID).Scan(&st.EmbeddingsStored)
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM proposals WHERE vault_id = ? AND status = 'pending'`, st.VaultID).Scan(&st.PendingProposals)
 	_ = d.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM proposals WHERE vault_id = ? AND status = 'applied'`, st.VaultID).Scan(&st.AppliedProposals)
 	return st, nil

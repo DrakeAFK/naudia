@@ -7,9 +7,11 @@ import (
 )
 
 func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianURI, obsidianCLI string) string {
-	vector := "unavailable; semantic suggestions disabled"
+	vector := "keyword search only"
 	if st.VectorAvailable {
-		vector = "sqlite-vec enabled"
+		vector = "sqlite-vec native KNN enabled"
+	} else if st.EmbeddingsStored > 0 {
+		vector = "Go cosine fallback"
 	}
 	return Card("Naudia Status", [][2]string{
 		{"Vault", st.VaultName},
@@ -19,7 +21,8 @@ func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianU
 		{"Database", st.DatabasePath},
 		{"Ollama", ollamaStatus},
 		{"Chat model", chatModel},
-		{"Embeddings", embeddingModel},
+		{"Embedding model", embeddingModel},
+		{"Embedded chunks", fmt.Sprintf("%d", st.EmbeddingsStored)},
 		{"Vector search", vector},
 		{"Obsidian URI", obsidianURI},
 		{"Obsidian CLI", obsidianCLI},

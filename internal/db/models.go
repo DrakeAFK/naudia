@@ -15,6 +15,7 @@ type Status struct {
 	LastScan         string `json:"last_scan"`
 	DatabasePath     string `json:"database_path"`
 	VectorAvailable  bool   `json:"vector_available"`
+	EmbeddingsStored int    `json:"embeddings_stored"`
 	PendingProposals int    `json:"pending_proposals"`
 	AppliedProposals int    `json:"applied_proposals"`
 }

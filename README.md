@@ -70,12 +70,35 @@ ollama pull llama3.1:8b
 ollama pull nomic-embed-text
 naudia init --vault /path/to/Obsidian/Main --vault-name Main
 naudia scan
+naudia status
+naudia doctor
 naudia review
 naudia proposals
 naudia show 1
 naudia apply 1 --yes
 naudia rollback 1
 ```
+
+Expected first-run notes:
+
+- `naudia scan` indexes Markdown and, when Ollama is online, stores embeddings locally.
+- `sqlite-vec` is optional. If `status` says `Vector search  Go cosine fallback`, Naudia can still use stored Ollama embeddings for semantic candidates. It only means native sqlite-vec KNN is unavailable in the local SQLite runtime.
+- If `doctor` says no embeddings are stored, run `naudia scan` again after confirming Ollama is online with `naudia status`.
+- For a faster keyword-only scan, use `naudia scan --no-embeddings`.
+- Naudia creates proposals only; it does not mutate notes until `naudia apply`.
+
+Recommended first workflow:
+
+```sh
+naudia status
+naudia scan
+naudia doctor
+naudia review --no-ai
+naudia review
+naudia proposals
+```
+
+Use `review --no-ai` first if you want to inspect the deterministic findings before Ollama-assisted suggestions.
 
 ## Commands
 
@@ -121,6 +144,13 @@ Conflict artifacts are written to `.naudia/conflicts/`.
 ## Context Model
 
 Naudia treats local model context as expensive. Exact path, title, link, folder, tag, and text matches outrank semantic-only candidates. Semantic search is useful evidence, not proof.
+
+Semantic retrieval has two local modes:
+
+- `sqlite-vec native KNN`: used when the sqlite-vec virtual table is available.
+- `Go cosine fallback`: used when sqlite-vec is unavailable but embeddings are stored in SQLite.
+
+Both modes stay local. If there are no stored embeddings, Naudia still works with deterministic structure, links, tags, folders, and keyword search.
 
 Use:
 

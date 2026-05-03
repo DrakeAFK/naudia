@@ -29,7 +29,8 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 			fmt.Sprintf("Vault: %s", status.VaultName),
 			fmt.Sprintf("Notes indexed: %d", status.Notes),
 			fmt.Sprintf("Database: %s", status.DatabasePath),
-			fmt.Sprintf("Vector search: %t", status.VectorAvailable),
+			fmt.Sprintf("Embeddings stored: %d", status.EmbeddingsStored),
+			fmt.Sprintf("Semantic search: %s", semanticSearchStatus(status.VectorAvailable, status.EmbeddingsStored)),
 			fmt.Sprintf("Pending proposals: %d", status.PendingProposals),
 		},
 	}
@@ -39,10 +40,20 @@ func (r Runner) Doctor(ctx context.Context) (Report, error) {
 	if r.AI == nil || r.AI.HealthCheck(ctx) != nil {
 		report.Issues = append(report.Issues, Issue{Category: "Ollama", Severity: "medium", Description: "Ollama is unavailable.", SuggestedAction: "Start Ollama and pull the configured models."})
 	}
-	if !status.VectorAvailable && r.Config.Index.UseEmbeddings {
-		report.Issues = append(report.Issues, Issue{Category: "Vector Search", Severity: "low", Description: "sqlite-vec is unavailable; Naudia will use keyword search and Go cosine fallback for stored embeddings.", SuggestedAction: "Install sqlite-vec or disable embeddings if you do not need semantic candidates."})
+	if !status.VectorAvailable && r.Config.Index.UseEmbeddings && status.EmbeddingsStored == 0 {
+		report.Issues = append(report.Issues, Issue{Category: "Embeddings", Severity: "low", Description: "No stored embeddings were found. Naudia is currently using deterministic and keyword retrieval only.", SuggestedAction: "Run naudia scan after Ollama is online, or use naudia scan --no-embeddings if you want keyword-only operation."})
 	}
 	return report, nil
+}
+
+func semanticSearchStatus(sqliteVec bool, embeddings int) string {
+	if sqliteVec {
+		return "sqlite-vec native KNN"
+	}
+	if embeddings > 0 {
+		return "Go cosine fallback over stored embeddings"
+	}
+	return "keyword and structural retrieval only"
 }
 
 func (r Runner) extractKnowledge(ctx context.Context, title, project string, needles []string, outputPath string, typ proposals.ProposalType) (Report, *proposals.Proposal, error) {
