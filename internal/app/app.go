@@ -60,7 +60,7 @@ func New(ctx context.Context, opts Options) (*App, error) {
 		Config:     cfg,
 		ConfigPath: cfgPath,
 		DB:         store,
-		AI:         ai.NewOllamaClient(cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel),
+		AI:         ai.NewOllamaClient(cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel, cfg.Ollama.ChatFallbackModels...),
 		Logger:     logger,
 	}, nil
 }

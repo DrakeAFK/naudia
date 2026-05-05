@@ -356,7 +356,7 @@ func (r Runner) aiReview(ctx context.Context, deterministic Report) (aiReviewOut
 	if err != nil {
 		return out, err
 	}
-	prompt := "Deterministic review:\n" + renderReportMarkdown(deterministic) + "\n\nContext pack:\n" + contextpack.Render(pack) + "\n\n" + ai.ReviewPrompt
+	prompt := "Deterministic review:\n" + renderReportMarkdown(deterministic) + "\n\nContext pack:\n" + contextpack.Render(pack) + "\n\n" + ai.ReviewPrompt + "\n\n" + ai.ReviewGuidance
 	resp, err := r.AI.Chat(ctx, ai.ChatRequest{
 		Messages: []ai.Message{
 			{Role: "system", Content: ai.SystemPrompt},

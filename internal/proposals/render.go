@@ -46,6 +46,9 @@ func RenderDetails(p Proposal, rec db.ProposalRecord) string {
 		}
 		b.WriteString("\n")
 	}
+	if rec.Status == "pending" {
+		fmt.Fprintf(&b, "\nNext:\n- Apply: naudia apply %d --yes\n- Reject: naudia reject %d\n- Patch only: naudia show %d --patch\n", rec.ID, rec.ID, rec.ID)
+	}
 	if strings.TrimSpace(rec.PatchText) != "" {
 		b.WriteString("\nPatch:\n")
 		b.WriteString(rec.PatchText)

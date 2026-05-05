@@ -13,19 +13,21 @@ import (
 )
 
 type OllamaClient struct {
-	Host           string
-	ChatModel      string
-	EmbeddingModel string
-	HTTP           *http.Client
+	Host               string
+	ChatModel          string
+	ChatFallbackModels []string
+	EmbeddingModel     string
+	HTTP               *http.Client
 }
 
-func NewOllamaClient(host, chatModel, embeddingModel string) *OllamaClient {
+func NewOllamaClient(host, chatModel, embeddingModel string, fallbackModels ...string) *OllamaClient {
 	host = strings.TrimRight(host, "/")
 	return &OllamaClient{
-		Host:           host,
-		ChatModel:      chatModel,
-		EmbeddingModel: embeddingModel,
-		HTTP:           &http.Client{Timeout: 120 * time.Second},
+		Host:               host,
+		ChatModel:          chatModel,
+		ChatFallbackModels: append([]string(nil), fallbackModels...),
+		EmbeddingModel:     embeddingModel,
+		HTTP:               &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
@@ -74,31 +76,39 @@ func (c *OllamaClient) ListModels(ctx context.Context) ([]string, error) {
 }
 
 func (c *OllamaClient) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
-	model := req.Model
-	if model == "" {
-		model = c.ChatModel
+	models := c.chatCandidateModels(ctx, req.Model)
+	var lastErr error
+	for _, model := range models {
+		body := map[string]any{
+			"model":    model,
+			"messages": req.Messages,
+			"stream":   false,
+			"options": map[string]any{
+				"temperature": req.Temperature,
+			},
+		}
+		if req.Format != "" {
+			body["format"] = req.Format
+		}
+		var payload struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+			Model string `json:"model"`
+		}
+		if err := c.postJSON(ctx, "/api/chat", body, &payload); err != nil {
+			lastErr = err
+			continue
+		}
+		if payload.Model == "" {
+			payload.Model = model
+		}
+		return ChatResponse{Content: payload.Message.Content, Model: payload.Model}, nil
 	}
-	body := map[string]any{
-		"model":    model,
-		"messages": req.Messages,
-		"stream":   false,
-		"options": map[string]any{
-			"temperature": req.Temperature,
-		},
+	if lastErr != nil {
+		return ChatResponse{}, lastErr
 	}
-	if req.Format != "" {
-		body["format"] = req.Format
-	}
-	var payload struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-		Model string `json:"model"`
-	}
-	if err := c.postJSON(ctx, "/api/chat", body, &payload); err != nil {
-		return ChatResponse{}, err
-	}
-	return ChatResponse{Content: payload.Message.Content, Model: payload.Model}, nil
+	return ChatResponse{}, errors.New("no Ollama chat model configured")
 }
 
 func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
@@ -175,4 +185,56 @@ func (c *OllamaClient) postJSON(ctx context.Context, path string, body any, dest
 		return fmt.Errorf("ollama returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 	return json.NewDecoder(resp.Body).Decode(dest)
+}
+
+func (c *OllamaClient) chatCandidateModels(ctx context.Context, requested string) []string {
+	primary := strings.TrimSpace(requested)
+	if primary == "" {
+		primary = strings.TrimSpace(c.ChatModel)
+	}
+	var out []string
+	add := func(model string) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return
+		}
+		for _, existing := range out {
+			if sameModel(existing, model) {
+				return
+			}
+		}
+		out = append(out, model)
+	}
+	add(primary)
+	if requested != "" || len(c.ChatFallbackModels) == 0 {
+		return out
+	}
+	available, err := c.ListModels(ctx)
+	if err != nil {
+		return out
+	}
+	for _, fallback := range c.ChatFallbackModels {
+		if model := matchingModel(available, fallback); model != "" {
+			add(model)
+		}
+	}
+	return out
+}
+
+func matchingModel(available []string, target string) string {
+	for _, model := range available {
+		if sameModel(model, target) {
+			return model
+		}
+	}
+	return ""
+}
+
+func sameModel(a, b string) bool {
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+	if a == "" || b == "" {
+		return false
+	}
+	return a == b || a == b+":latest" || a+":latest" == b
 }

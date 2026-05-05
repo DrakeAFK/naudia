@@ -9,12 +9,17 @@ var methodWeight = map[string]float64{
 	"user_supplied": 100,
 	"exact_path":    95,
 	"exact_title":   90,
+	"title_token":   86,
+	"path_token":    84,
 	"backlink":      80,
 	"outlink":       78,
+	"heading_token": 74,
 	"folder":        72,
 	"tag":           68,
+	"token_search":  64,
 	"recent_daily":  60,
 	"text_search":   50,
+	"small_vault":   42,
 	"semantic":      35,
 }
 

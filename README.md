@@ -35,10 +35,13 @@ Naudia is built around stewardship over chat, diffs over magic, rollbacks over b
 - Link suggestions
 - Task extraction
 - Structure and template analysis
+- Interactive assistant chat with follow-up turns
+- Direct note create/append commands
 - Proposal list/show/apply/reject flow
 - Drift-aware rollback with conflict artifacts
 - SQLite index with bundled sqlite-vec native KNN and Go cosine fallback
 - Ollama chat and embedding clients
+- Configurable smaller chat model fallback
 - Conservative context budgeting with `--show-context`
 - Obsidian URI helpers and optional CLI detection
 - Bubble Tea and Lip Gloss terminal interface
@@ -95,6 +98,7 @@ If you installed with the curl installer, rerun the installer command. If your s
 
 ```sh
 ollama pull llama3.1:8b
+ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 naudia init --vault /path/to/Obsidian/Main --vault-name Main
 naudia scan
@@ -110,6 +114,8 @@ naudia rollback 1
 Expected first-run notes:
 
 - `naudia scan` indexes Markdown and, when Ollama is online, stores embeddings locally.
+- `llama3.1:8b` remains the default primary chat model. If your machine cannot run it, use `naudia models --set-chat llama3.2:3b` or pass `--model llama3.2:3b` for one run.
+- Naudia will try configured installed fallback chat models when the primary Ollama chat model fails.
 - `Embeddings updated` in scan output means embeddings created or refreshed during that run. `Total embeddings` is the current stored total.
 - Naudia bundles sqlite-vec through its SQLite runtime on supported platforms. You should not normally install sqlite-vec yourself.
 - If `status` says `Vector search  Go cosine fallback`, Naudia can still use stored Ollama embeddings for semantic candidates. It only means native sqlite-vec KNN was unavailable in that binary/runtime.
@@ -135,6 +141,7 @@ Use `review --no-ai` first if you want to inspect the deterministic findings bef
 
 - `naudia init`
 - `naudia status`
+- `naudia models`
 - `naudia scan`
 - `naudia review`
 - `naudia daily`
@@ -154,6 +161,9 @@ Use `review --no-ai` first if you want to inspect the deterministic findings bef
 - `naudia rollback <proposal-id>`
 - `naudia undo <proposal-id>`
 - `naudia ask "<question>"`
+- `naudia chat`
+- `naudia note create <path>`
+- `naudia note append <path>`
 
 All output supports the global `--json`, `--markdown`, and `--output` flags where the command has structured data to emit.
 
@@ -190,6 +200,34 @@ Use:
 naudia project "Naudia" --show-context
 naudia daily --show-context
 naudia ask "What did I decide about naming?" --show-context
+```
+
+## Interactive Assistant
+
+Use `chat` when you want back-and-forth instead of a single answer:
+
+```sh
+naudia chat
+```
+
+Inside chat:
+
+```text
+/create Ideas/Local AI.md | # Local AI
+
+Local AI keeps private notes on this machine.
+/append Projects/Test App.md | ## Next
+
+- [ ] Review the proposal workflow
+/show 3
+/apply 3
+```
+
+For deterministic note edits without model involvement:
+
+```sh
+naudia note create Ideas/Foo.md --content "# Foo"
+naudia note append Projects/Test.md --heading "Next" --content "- [ ] Follow up"
 ```
 
 ## Configuration

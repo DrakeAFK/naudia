@@ -81,3 +81,14 @@ type aiStructureOutput struct {
 		RiskLevel string `json:"risk_level"`
 	} `json:"migration_suggestions"`
 }
+
+type aiAssistantOutput struct {
+	Answer            string   `json:"answer"`
+	FollowUpQuestions []string `json:"follow_up_questions"`
+	Actions           []struct {
+		Kind    string `json:"kind"`
+		Path    string `json:"path"`
+		Content string `json:"content"`
+		Reason  string `json:"reason"`
+	} `json:"actions"`
+}

@@ -34,5 +34,4 @@ tar -xzf "$tmp/$asset" -C "$tmp"
 install "$tmp/$bin" "$install_dir/$bin"
 
 echo "Installed $bin to $install_dir/$bin"
-echo "Next: ollama pull llama3.1:8b && ollama pull nomic-embed-text && naudia init"
-
+echo "Next: ollama pull llama3.1:8b && ollama pull llama3.2:3b && ollama pull nomic-embed-text && naudia init"

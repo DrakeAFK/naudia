@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/DrakeAFK/naudia/internal/contextpack"
 	"github.com/DrakeAFK/naudia/internal/obsidian"
@@ -56,6 +57,11 @@ func (r Runner) BuildContext(ctx context.Context, query string, mode string) (co
 		return contextpack.Pack{}, err
 	}
 	candidates = append(candidates, tagItems...)
+	tokenItems, err := r.tokenContext(ctx, query, budget.MaxChunks*3)
+	if err != nil {
+		return contextpack.Pack{}, err
+	}
+	candidates = append(candidates, tokenItems...)
 	if mode == "daily" || mode == "project" || mode == "ask" {
 		recentDaily, err := r.recentDailyContext(ctx, query)
 		if err != nil {
@@ -128,7 +134,45 @@ func (r Runner) BuildContext(ctx context.Context, query string, mode string) (co
 			}
 		}
 	}
-	return contextpack.Build(candidates, budget), nil
+	if mode == "ask" {
+		candidates = focusHighConfidenceAskContext(candidates)
+	}
+	pack := contextpack.Build(candidates, budget)
+	if mode == "ask" && len(pack.Items) == 0 {
+		fallback, err := r.smallVaultContext(ctx, budget.MaxChunks)
+		if err != nil {
+			return contextpack.Pack{}, err
+		}
+		pack = contextpack.Build(fallback, budget)
+	}
+	return pack, nil
+}
+
+func focusHighConfidenceAskContext(items []contextpack.Item) []contextpack.Item {
+	focus := map[string]bool{}
+	for _, item := range items {
+		switch item.RetrievalMethod {
+		case "exact_title", "exact_path", "title_token", "path_token":
+			if item.Score >= 0.86 {
+				focus[item.NotePath] = true
+			}
+		}
+	}
+	if len(focus) == 0 {
+		return items
+	}
+	out := make([]contextpack.Item, 0, len(items))
+	for _, item := range items {
+		if focus[item.NotePath] {
+			out = append(out, item)
+			continue
+		}
+		switch item.RetrievalMethod {
+		case "backlink", "outlink", "tag":
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 func (r Runner) exactNoteContext(ctx context.Context, query string) ([]contextpack.Item, error) {
@@ -230,6 +274,150 @@ func (r Runner) tagContext(ctx context.Context, query string) ([]contextpack.Ite
 	return items, nil
 }
 
+func (r Runner) tokenContext(ctx context.Context, query string, limit int) ([]contextpack.Item, error) {
+	tokens := queryTokens(query)
+	if len(tokens) == 0 {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 24
+	}
+	if len(tokens) > 8 {
+		tokens = tokens[:8]
+	}
+	where := make([]string, 0, len(tokens))
+	args := []any{r.VaultID}
+	for _, token := range tokens {
+		like := "%" + token + "%"
+		where = append(where, `(lower(n.path) LIKE ? OR lower(n.title) LIKE ? OR lower(COALESCE(n.aliases_json, '')) LIKE ? OR lower(COALESCE(c.heading_context, '')) LIKE ? OR lower(c.content) LIKE ?)`)
+		args = append(args, like, like, like, like, like)
+	}
+	args = append(args, limit)
+	rows, err := r.Store.SQL.QueryContext(ctx, `
+		SELECT c.id, c.note_id, n.path, n.title, c.chunk_index, c.content, c.content_hash, COALESCE(c.heading_context, ''), COALESCE(c.token_estimate, 0)
+		FROM chunks c
+		JOIN notes n ON n.id = c.note_id
+		WHERE n.vault_id = ? AND (`+strings.Join(where, " OR ")+`)
+		ORDER BY
+		  CASE
+		    WHEN lower(n.title) LIKE '%' || lower(?) || '%' THEN 0
+		    WHEN lower(n.path) LIKE '%' || lower(?) || '%' THEN 1
+		    ELSE 2
+		  END,
+		  n.path,
+		  c.chunk_index
+		LIMIT ?
+	`, append(args[:len(args)-1], strings.Join(tokens, " "), strings.Join(tokens, " "), limit)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	chunks, err := scanContextChunks(rows)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]contextpack.Item, 0, len(chunks))
+	phrase := strings.Join(tokens, " ")
+	for _, chunk := range chunks {
+		method, reason, score := scoreTokenChunk(chunk, tokens, phrase)
+		if method == "" {
+			continue
+		}
+		items = append(items, chunkToItem(r.Config.Vault.Name, chunk, method, reason, score))
+	}
+	return items, nil
+}
+
+func scoreTokenChunk(chunk contextChunk, tokens []string, phrase string) (string, string, float64) {
+	title := strings.ToLower(chunk.Title)
+	path := strings.ToLower(strings.TrimSuffix(chunk.NotePath, ".md"))
+	heading := strings.ToLower(chunk.HeadingContext)
+	content := strings.ToLower(chunk.Content)
+	if phrase != "" && (strings.Contains(title, phrase) || strings.Contains(path, phrase)) {
+		return "title_token", "The note title or path contains the key phrase from the question.", 0.9
+	}
+	titleHits := countContains(title, tokens)
+	pathHits := countContains(path, tokens)
+	headingHits := countContains(heading, tokens)
+	contentHits := countContains(content, tokens)
+	all := len(tokens)
+	switch {
+	case all > 0 && titleHits == all:
+		return "title_token", "The note title contains all key terms from the question.", 0.88
+	case all > 0 && pathHits == all:
+		return "path_token", "The note path contains all key terms from the question.", 0.86
+	case titleHits > 0 || pathHits > 0:
+		return "title_token", "The note title or path contains key terms from the question.", 0.78 + 0.02*float64(titleHits+pathHits)
+	case all > 0 && headingHits == all:
+		return "heading_token", "A heading contains all key terms from the question.", 0.74
+	case headingHits > 0:
+		return "heading_token", "A heading contains key terms from the question.", 0.68 + 0.02*float64(headingHits)
+	case all > 0 && contentHits == all:
+		return "token_search", "The note content contains all key terms from the question.", 0.66
+	case contentHits > 0:
+		return "token_search", "The note content contains key terms from the question.", 0.56 + 0.02*float64(contentHits)
+	default:
+		return "", "", 0
+	}
+}
+
+func countContains(haystack string, needles []string) int {
+	count := 0
+	for _, needle := range needles {
+		if containsTerm(haystack, needle) {
+			count++
+		}
+	}
+	return count
+}
+
+func containsTerm(haystack string, needle string) bool {
+	if len(needle) > 2 {
+		return strings.Contains(haystack, needle)
+	}
+	for _, field := range strings.FieldsFunc(haystack, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		if field == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func (r Runner) smallVaultContext(ctx context.Context, limit int) ([]contextpack.Item, error) {
+	var notes int
+	if err := r.Store.SQL.QueryRowContext(ctx, `SELECT COUNT(*) FROM notes WHERE vault_id = ?`, r.VaultID).Scan(&notes); err != nil {
+		return nil, err
+	}
+	if notes == 0 || notes > 12 {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.Store.SQL.QueryContext(ctx, `
+		SELECT c.id, c.note_id, n.path, n.title, c.chunk_index, c.content, c.content_hash, COALESCE(c.heading_context, ''), COALESCE(c.token_estimate, 0)
+		FROM chunks c
+		JOIN notes n ON n.id = c.note_id
+		WHERE n.vault_id = ?
+		ORDER BY
+		  CASE WHEN instr(n.path, '/') = 0 THEN 0 ELSE 1 END,
+		  n.path,
+		  c.chunk_index
+		LIMIT ?
+	`, r.VaultID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	chunks, err := scanContextChunks(rows)
+	if err != nil {
+		return nil, err
+	}
+	return chunksToItems(r.Config.Vault.Name, chunks, "small_vault", "The vault is small enough to include broad context after no direct match.", 0.5), nil
+}
+
 func (r Runner) recentDailyContext(ctx context.Context, query string) ([]contextpack.Item, error) {
 	cutoff := time.Now().AddDate(0, 0, -r.Config.Context.RecentDailyNoteDays).Format("2006-01-02")
 	dailyPrefix := strings.Trim(r.Config.Daily.Folder, "/") + "/"
@@ -297,15 +485,43 @@ func chunkToItem(vaultName string, chunk contextChunk, method, reason string, sc
 }
 
 func queryTokens(query string) []string {
-	fields := strings.Fields(strings.ToLower(query))
+	query = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return unicode.ToLower(r)
+		}
+		return ' '
+	}, query)
+	fields := strings.Fields(query)
+	seen := map[string]bool{}
 	var out []string
 	for _, field := range fields {
-		field = strings.Trim(field, "#.,:;!?()[]{}\"'")
-		if len(field) >= 3 {
-			out = append(out, field)
+		field = strings.TrimSpace(field)
+		if field == "" || queryStopwords[field] {
+			continue
 		}
+		if len(field) < 2 {
+			continue
+		}
+		if seen[field] {
+			continue
+		}
+		seen[field] = true
+		out = append(out, field)
 	}
 	return out
+}
+
+var queryStopwords = map[string]bool{
+	"a": true, "about": true, "after": true, "all": true, "also": true, "am": true, "an": true,
+	"and": true, "any": true, "are": true, "as": true, "at": true, "be": true, "been": true,
+	"but": true, "by": true, "can": true, "could": true, "did": true, "do": true, "does": true,
+	"explain": true, "for": true, "from": true, "had": true, "has": true, "have": true, "how": true,
+	"i": true, "in": true, "into": true, "is": true, "it": true, "its": true, "me": true,
+	"my": true, "note": true, "notes": true, "of": true, "on": true, "or": true, "our": true,
+	"please": true, "show": true, "tell": true, "that": true, "the": true, "their": true,
+	"these": true, "this": true, "those": true, "to": true, "was": true, "we": true, "were": true,
+	"what": true, "when": true, "where": true, "which": true, "who": true, "why": true, "with": true,
+	"would": true, "you": true, "your": true,
 }
 
 func safeName(s string) string {

@@ -67,7 +67,14 @@ func ProposalTable(records []db.ProposalRecord) string {
 	}
 	var rows [][2]string
 	for _, p := range records {
-		rows = append(rows, [2]string{fmt.Sprintf("%d", p.ID), fmt.Sprintf("%s  %s  %s", truncate(p.Title, 38), p.Status, p.Type)})
+		value := fmt.Sprintf("%s  %s  %s", truncate(p.Title, 38), p.Status, p.Type)
+		if strings.TrimSpace(p.Summary) != "" {
+			value += "\n" + p.Summary
+		}
+		rows = append(rows, [2]string{fmt.Sprintf("#%d", p.ID), value})
+	}
+	if len(records) > 0 {
+		rows = append(rows, [2]string{"Next", fmt.Sprintf("naudia show %d, then naudia apply %d --yes or naudia reject %d", records[0].ID, records[0].ID, records[0].ID)})
 	}
 	return Card("Pending Proposals", rows)
 }

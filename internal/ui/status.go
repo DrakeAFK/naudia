@@ -2,11 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/DrakeAFK/naudia/internal/db"
 )
 
-func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianURI, obsidianCLI string) string {
+func StatusCard(st db.Status, ollamaStatus, chatModel string, fallbackModels []string, embeddingModel, obsidianURI, obsidianCLI string) string {
 	vector := "keyword search only"
 	if st.VectorAvailable {
 		vector = "sqlite-vec native KNN ready"
@@ -26,6 +27,7 @@ func StatusCard(st db.Status, ollamaStatus, chatModel, embeddingModel, obsidianU
 		{"Database", st.DatabasePath},
 		{"Ollama", ollamaStatus},
 		{"Chat model", chatModel},
+		{"Model fallback", emptyDash(strings.Join(fallbackModels, ", "))},
 		{"Embedding model", embeddingModel},
 		{"Embedded chunks", fmt.Sprintf("%d", st.EmbeddingsStored)},
 		{"Vector chunks", fmt.Sprintf("%d", st.VectorIndexed)},

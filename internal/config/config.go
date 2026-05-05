@@ -25,9 +25,10 @@ type Config struct {
 }
 
 type OllamaConfig struct {
-	Host           string `mapstructure:"host" json:"host"`
-	ChatModel      string `mapstructure:"chat_model" json:"chat_model"`
-	EmbeddingModel string `mapstructure:"embedding_model" json:"embedding_model"`
+	Host               string   `mapstructure:"host" json:"host"`
+	ChatModel          string   `mapstructure:"chat_model" json:"chat_model"`
+	ChatFallbackModels []string `mapstructure:"chat_fallback_models" json:"chat_fallback_models"`
+	EmbeddingModel     string   `mapstructure:"embedding_model" json:"embedding_model"`
 }
 
 type VaultConfig struct {
@@ -93,9 +94,10 @@ type LoadOptions struct {
 func Default() Config {
 	return Config{
 		Ollama: OllamaConfig{
-			Host:           "http://localhost:11434",
-			ChatModel:      "llama3.1:8b",
-			EmbeddingModel: "nomic-embed-text",
+			Host:               "http://localhost:11434",
+			ChatModel:          "llama3.1:8b",
+			ChatFallbackModels: []string{"llama3.2:3b", "qwen2.5:3b", "phi3.5:3.8b"},
+			EmbeddingModel:     "nomic-embed-text",
 		},
 		Obsidian: ObsidianConfig{
 			UseURI:     true,
@@ -269,7 +271,16 @@ func Validate(cfg Config) error {
 func RenderTOML(cfg Config) string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "[ollama]\n")
-	fmt.Fprintf(&b, "host = %q\nchat_model = %q\nembedding_model = %q\n\n", cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel)
+	fmt.Fprintf(&b, "host = %q\nchat_model = %q\n", cfg.Ollama.Host, cfg.Ollama.ChatModel)
+	fmt.Fprintf(&b, "chat_fallback_models = [")
+	for i, model := range cfg.Ollama.ChatFallbackModels {
+		if i > 0 {
+			fmt.Fprintf(&b, ", ")
+		}
+		fmt.Fprintf(&b, "%q", model)
+	}
+	fmt.Fprintf(&b, "]\n")
+	fmt.Fprintf(&b, "embedding_model = %q\n\n", cfg.Ollama.EmbeddingModel)
 	fmt.Fprintf(&b, "[vault]\n")
 	fmt.Fprintf(&b, "path = %q\nname = %q\n\n", cfg.Vault.Path, cfg.Vault.Name)
 	fmt.Fprintf(&b, "[obsidian]\n")
@@ -302,6 +313,7 @@ func mergeFile(v *viper.Viper, path string) error {
 func setDefaults(v *viper.Viper, cfg Config) {
 	v.SetDefault("ollama.host", cfg.Ollama.Host)
 	v.SetDefault("ollama.chat_model", cfg.Ollama.ChatModel)
+	v.SetDefault("ollama.chat_fallback_models", cfg.Ollama.ChatFallbackModels)
 	v.SetDefault("ollama.embedding_model", cfg.Ollama.EmbeddingModel)
 	v.SetDefault("obsidian.use_uri", cfg.Obsidian.UseURI)
 	v.SetDefault("obsidian.use_cli", cfg.Obsidian.UseCLI)

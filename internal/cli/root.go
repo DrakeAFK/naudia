@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,6 +31,7 @@ type rootOptions struct {
 	vaultPath  string
 	configPath string
 	output     string
+	model      string
 	debug      bool
 	json       bool
 	markdown   bool
@@ -51,12 +53,14 @@ func NewRootCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&rootOpts.vaultPath, "vault", "", "Obsidian vault path")
 	cmd.PersistentFlags().StringVar(&rootOpts.configPath, "config", "", "Naudia config path")
 	cmd.PersistentFlags().StringVarP(&rootOpts.output, "output", "o", "", "output format: pretty, json, markdown, quiet")
+	cmd.PersistentFlags().StringVar(&rootOpts.model, "model", "", "Ollama chat model override for this run")
 	cmd.PersistentFlags().BoolVar(&rootOpts.debug, "debug", false, "enable debug logging")
 	cmd.PersistentFlags().BoolVar(&rootOpts.json, "json", false, "write JSON output")
 	cmd.PersistentFlags().BoolVar(&rootOpts.markdown, "markdown", false, "write Markdown output")
 	cmd.AddCommand(
 		initCmd(),
 		statusCmd(),
+		modelsCmd(),
 		scanCmd(),
 		reviewCmd(),
 		dailyCmd(),
@@ -76,6 +80,8 @@ func NewRootCommand() *cobra.Command {
 		rollbackCmd("rollback"),
 		rollbackCmd("undo"),
 		askCmd(),
+		chatCmd(),
+		noteCmd(),
 	)
 	return cmd
 }
@@ -108,6 +114,11 @@ func withApp(cmd *cobra.Command, fn func(context.Context, *app.App) error) error
 	a, err := app.New(ctx, app.Options{VaultPath: rootOpts.vaultPath, ConfigPath: rootOpts.configPath, Debug: rootOpts.debug})
 	if err != nil {
 		return err
+	}
+	if rootOpts.model != "" {
+		a.Config.Ollama.ChatModel = rootOpts.model
+		a.AI.ChatModel = rootOpts.model
+		a.AI.ChatFallbackModels = nil
 	}
 	defer a.Close()
 	return fn(ctx, a)
@@ -192,7 +203,7 @@ func initCmd() *cobra.Command {
 			}
 			ollama := "offline"
 			modelSummary := "unavailable"
-			client := ai.NewOllamaClient(cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel)
+			client := ai.NewOllamaClient(cfg.Ollama.Host, cfg.Ollama.ChatModel, cfg.Ollama.EmbeddingModel, cfg.Ollama.ChatFallbackModels...)
 			if err := client.HealthCheck(ctx); err == nil {
 				ollama = "online"
 				if models, err := client.ListModels(ctx); err == nil {
@@ -216,6 +227,7 @@ func initCmd() *cobra.Command {
 				{"Database", dbPath},
 				{"Ollama", ollama},
 				{"Models", modelSummary},
+				{"Fallbacks", emptyString(strings.Join(cfg.Ollama.ChatFallbackModels, ", "), "-")},
 				{"sqlite-vec", vectorStatus(store.VectorAvailable)},
 				{"Obsidian URI", enabledDisabled(cfg.Obsidian.UseURI)},
 				{"Obsidian CLI", cliStatus},
@@ -249,17 +261,95 @@ func statusCmd() *cobra.Command {
 					cliStatus = "available"
 				}
 				if format(cmd) == "json" {
-					return writeJSON(cmd, map[string]any{"status": st, "ollama": ollamaStatus, "obsidian_uri": a.Config.Obsidian.UseURI, "obsidian_cli": cliStatus})
+					return writeJSON(cmd, map[string]any{"status": st, "ollama": ollamaStatus, "chat_model": a.Config.Ollama.ChatModel, "chat_fallback_models": a.Config.Ollama.ChatFallbackModels, "obsidian_uri": a.Config.Obsidian.UseURI, "obsidian_cli": cliStatus})
 				}
 				uriStatus := "disabled"
 				if a.Config.Obsidian.UseURI {
 					uriStatus = "enabled"
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), ui.StatusCard(st, ollamaStatus, a.Config.Ollama.ChatModel, a.Config.Ollama.EmbeddingModel, uriStatus, cliStatus))
+				fmt.Fprintln(cmd.OutOrStdout(), ui.StatusCard(st, ollamaStatus, a.Config.Ollama.ChatModel, a.Config.Ollama.ChatFallbackModels, a.Config.Ollama.EmbeddingModel, uriStatus, cliStatus))
 				return nil
 			})
 		},
 	}
+}
+
+func modelsCmd() *cobra.Command {
+	var setChat, setEmbedding, addFallback string
+	var clearFallbacks bool
+	cmd := &cobra.Command{
+		Use:   "models",
+		Short: "Show or update local Ollama model settings",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withApp(cmd, func(ctx context.Context, a *app.App) error {
+				changed := false
+				if setChat = strings.TrimSpace(setChat); setChat != "" {
+					a.Config.Ollama.ChatModel = setChat
+					changed = true
+				}
+				if setEmbedding = strings.TrimSpace(setEmbedding); setEmbedding != "" {
+					a.Config.Ollama.EmbeddingModel = setEmbedding
+					changed = true
+				}
+				if clearFallbacks {
+					a.Config.Ollama.ChatFallbackModels = nil
+					changed = true
+				}
+				if addFallback = strings.TrimSpace(addFallback); addFallback != "" {
+					if !stringIn(addFallback, a.Config.Ollama.ChatFallbackModels) {
+						a.Config.Ollama.ChatFallbackModels = append(a.Config.Ollama.ChatFallbackModels, addFallback)
+						changed = true
+					}
+				}
+				if changed {
+					if err := config.Save(a.ConfigPath, a.Config); err != nil {
+						return err
+					}
+					a.AI.ChatModel = a.Config.Ollama.ChatModel
+					a.AI.ChatFallbackModels = a.Config.Ollama.ChatFallbackModels
+					a.AI.EmbeddingModel = a.Config.Ollama.EmbeddingModel
+				}
+				ollamaStatus := "offline"
+				var models []string
+				if err := a.AI.HealthCheck(ctx); err == nil {
+					ollamaStatus = "online"
+					models, _ = a.AI.ListModels(ctx)
+				}
+				payload := map[string]any{
+					"ollama":               ollamaStatus,
+					"chat_model":           a.Config.Ollama.ChatModel,
+					"chat_fallback_models": a.Config.Ollama.ChatFallbackModels,
+					"embedding_model":      a.Config.Ollama.EmbeddingModel,
+					"installed_models":     models,
+					"config":               a.ConfigPath,
+					"changed":              changed,
+				}
+				if format(cmd) == "json" {
+					return writeJSON(cmd, payload)
+				}
+				rows := [][2]string{
+					{"Ollama", ollamaStatus},
+					{"Chat model", a.Config.Ollama.ChatModel},
+					{"Fallbacks", emptyString(strings.Join(a.Config.Ollama.ChatFallbackModels, ", "), "-")},
+					{"Embedding", a.Config.Ollama.EmbeddingModel},
+					{"Config", a.ConfigPath},
+				}
+				if len(models) > 0 {
+					rows = append(rows, [2]string{"Installed", strings.Join(models, ", ")})
+				}
+				if changed {
+					rows = append(rows, [2]string{"Updated", "saved model settings"})
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), ui.Card("Naudia Models", rows))
+				return nil
+			})
+		},
+	}
+	cmd.Flags().StringVar(&setChat, "set-chat", "", "persist the primary Ollama chat model")
+	cmd.Flags().StringVar(&setEmbedding, "set-embedding", "", "persist the Ollama embedding model")
+	cmd.Flags().StringVar(&addFallback, "add-fallback", "", "append a chat fallback model")
+	cmd.Flags().BoolVar(&clearFallbacks, "clear-fallbacks", false, "remove configured chat fallback models")
+	return cmd
 }
 
 func scanCmd() *cobra.Command {
@@ -1121,6 +1211,374 @@ func askCmd() *cobra.Command {
 	return cmd
 }
 
+func chatCmd() *cobra.Command {
+	var showContext, apply bool
+	cmd := &cobra.Command{
+		Use:   "chat [message]",
+		Short: "Chat with Naudia and prepare note edits",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return withApp(cmd, func(ctx context.Context, a *app.App) error {
+				_, _, _ = scanVault(ctx, a, scanOptions{NoEmbeddings: false})
+				r, err := runner(ctx, a)
+				if err != nil {
+					return err
+				}
+				pm, err := proposalManager(ctx, a)
+				if err != nil {
+					return err
+				}
+				if len(args) > 0 {
+					message := strings.Join(args, " ")
+					result, proposalID, applied, err := runAssistantTurn(cmd, ctx, r, pm, message, nil, apply)
+					if err != nil {
+						return err
+					}
+					if format(cmd) == "json" {
+						return writeJSON(cmd, map[string]any{"result": result, "proposal_id": proposalID, "applied": applied})
+					}
+					writeAssistantTurn(cmd, result, proposalID, applied, showContext)
+					return nil
+				}
+				if format(cmd) == "json" {
+					return errors.New("chat --json requires a message argument")
+				}
+				return runInteractiveChat(cmd, ctx, r, pm, apply, showContext)
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&showContext, "show-context", false, "show context after each assistant turn")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply generated low-risk note proposals immediately")
+	return cmd
+}
+
+func runInteractiveChat(cmd *cobra.Command, ctx context.Context, r engines.Runner, pm proposals.Manager, apply bool, showContext bool) error {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Naudia chat. Type /help for commands, /quit to exit.")
+	scanner := bufio.NewScanner(os.Stdin)
+	var history []ai.Message
+	var lastContext contextpack.Pack
+	for {
+		fmt.Fprint(out, "\n> ")
+		if !scanner.Scan() {
+			break
+		}
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		handled, exit, err := handleChatCommand(cmd, ctx, r, pm, line, apply, &lastContext)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
+			continue
+		}
+		if exit {
+			return nil
+		}
+		if handled {
+			continue
+		}
+		result, proposalID, applied, err := runAssistantTurn(cmd, ctx, r, pm, line, history, apply)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
+			continue
+		}
+		lastContext = result.Context
+		writeAssistantTurn(cmd, result, proposalID, applied, showContext)
+		history = append(history,
+			ai.Message{Role: "user", Content: line},
+			ai.Message{Role: "assistant", Content: result.Answer},
+		)
+	}
+	return scanner.Err()
+}
+
+func handleChatCommand(cmd *cobra.Command, ctx context.Context, r engines.Runner, pm proposals.Manager, line string, apply bool, lastContext *contextpack.Pack) (bool, bool, error) {
+	out := cmd.OutOrStdout()
+	switch {
+	case line == "/quit" || line == "/exit" || line == "/q":
+		return true, true, nil
+	case line == "/help":
+		fmt.Fprintln(out, chatHelp())
+		return true, false, nil
+	case line == "/context":
+		if lastContext == nil || len(lastContext.Items) == 0 {
+			fmt.Fprintln(out, "No context from a previous turn yet.")
+			return true, false, nil
+		}
+		fmt.Fprintln(out, contextpack.Table(*lastContext))
+		return true, false, nil
+	case strings.HasPrefix(line, "/show "):
+		id, err := parseChatID(line, "/show ")
+		if err != nil {
+			return true, false, err
+		}
+		p, rec, err := pm.Load(ctx, id)
+		if err != nil {
+			return true, false, err
+		}
+		fmt.Fprintln(out, proposals.RenderDetails(*p, rec))
+		return true, false, nil
+	case strings.HasPrefix(line, "/apply "):
+		id, err := parseChatID(line, "/apply ")
+		if err != nil {
+			return true, false, err
+		}
+		return true, false, applyProposalFromChat(cmd, ctx, pm, id)
+	case strings.HasPrefix(line, "/reject "):
+		id, err := parseChatID(line, "/reject ")
+		if err != nil {
+			return true, false, err
+		}
+		if err := pm.Store.UpdateProposalStatus(ctx, id, "rejected"); err != nil {
+			return true, false, err
+		}
+		fmt.Fprintf(out, "Rejected proposal %d.\n", id)
+		return true, false, nil
+	case strings.HasPrefix(line, "/create "):
+		return true, false, prepareDirectChatNote(cmd, ctx, r, pm, proposals.ActionCreateNote, strings.TrimSpace(strings.TrimPrefix(line, "/create ")), apply)
+	case strings.HasPrefix(line, "/append "):
+		return true, false, prepareDirectChatNote(cmd, ctx, r, pm, proposals.ActionAppendToNote, strings.TrimSpace(strings.TrimPrefix(line, "/append ")), apply)
+	case strings.HasPrefix(line, "/"):
+		return true, false, fmt.Errorf("unknown chat command %q", strings.Fields(line)[0])
+	default:
+		return false, false, nil
+	}
+}
+
+func chatHelp() string {
+	return strings.TrimSpace(`Commands:
+/create path/to/Note.md | Markdown content
+/append path/to/Note.md | Markdown content
+/show <proposal-id>
+/apply <proposal-id>
+/reject <proposal-id>
+/context
+/quit`)
+}
+
+func runAssistantTurn(cmd *cobra.Command, ctx context.Context, r engines.Runner, pm proposals.Manager, message string, history []ai.Message, apply bool) (engines.AssistResult, int64, bool, error) {
+	result, err := r.Assist(ctx, message, history)
+	if err != nil {
+		return result, 0, false, err
+	}
+	var proposalID int64
+	var applied bool
+	if result.Proposal != nil {
+		proposalID, err = pm.Save(ctx, result.Proposal)
+		if err != nil {
+			return result, 0, false, err
+		}
+		result.Proposal.ID = proposalID
+		if apply {
+			if _, err := pm.Apply(ctx, proposalID); err != nil {
+				return result, proposalID, false, err
+			}
+			applied = true
+		}
+	}
+	return result, proposalID, applied, nil
+}
+
+func writeAssistantTurn(cmd *cobra.Command, result engines.AssistResult, proposalID int64, applied bool, showContext bool) {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, result.Answer)
+	for _, question := range result.FollowUpQuestions {
+		if strings.TrimSpace(question) != "" && question != result.Answer {
+			fmt.Fprintf(out, "\nFollow-up: %s\n", question)
+		}
+	}
+	if proposalID > 0 {
+		if applied {
+			fmt.Fprintf(out, "\nApplied proposal %d.\n", proposalID)
+		} else {
+			fmt.Fprintf(out, "\nProposal %d prepared. Review with `/show %d`, apply with `/apply %d`, or run `naudia show %d`.\n", proposalID, proposalID, proposalID, proposalID)
+		}
+	}
+	if showContext {
+		fmt.Fprintln(out, "\nContext:\n"+contextpack.Table(result.Context))
+	}
+}
+
+func parseChatID(line, prefix string) (int64, error) {
+	value := strings.TrimSpace(strings.TrimPrefix(line, prefix))
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s requires a proposal ID", strings.TrimSpace(prefix))
+	}
+	return id, nil
+}
+
+func applyProposalFromChat(cmd *cobra.Command, ctx context.Context, pm proposals.Manager, id int64) error {
+	p, _, err := pm.Load(ctx, id)
+	if err != nil {
+		return err
+	}
+	if p.RequiresConfirmation || p.RiskLevel == proposals.RiskHigh {
+		ok, err := ui.ConfirmID(os.Stdin, cmd.OutOrStdout(), id, riskMessage(p, false))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("proposal %d was not confirmed", id)
+		}
+	}
+	result, err := pm.Apply(ctx, id)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Applied proposal %d (%d actions). Roll back with `naudia rollback %d`.\n", id, len(result.Applied), id)
+	return nil
+}
+
+func prepareDirectChatNote(cmd *cobra.Command, ctx context.Context, r engines.Runner, pm proposals.Manager, kind proposals.ActionKind, payload string, apply bool) error {
+	path, content, ok := strings.Cut(payload, "|")
+	if !ok {
+		return errors.New("use `|` between the note path and content")
+	}
+	prop, err := r.NoteChangeProposal(kind, strings.TrimSpace(path), strings.TrimSpace(content))
+	if err != nil {
+		return err
+	}
+	id, applied, err := saveMaybeApplyProposal(ctx, pm, prop, apply)
+	if err != nil {
+		return err
+	}
+	if applied {
+		fmt.Fprintf(cmd.OutOrStdout(), "Applied proposal %d.\n", id)
+	} else {
+		fmt.Fprintf(cmd.OutOrStdout(), "Proposal %d prepared. Review with `/show %d`, apply with `/apply %d`.\n", id, id, id)
+	}
+	return nil
+}
+
+func noteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "note",
+		Short: "Create or append to Obsidian notes",
+	}
+	cmd.AddCommand(noteCreateCmd(), noteAppendCmd())
+	return cmd
+}
+
+func noteCreateCmd() *cobra.Command {
+	var content, contentFile string
+	var apply bool
+	cmd := &cobra.Command{
+		Use:   "create <path>",
+		Short: "Prepare a proposal that creates a note",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDirectNoteCommand(cmd, args[0], proposals.ActionCreateNote, content, contentFile, apply)
+		},
+	}
+	cmd.Flags().StringVar(&content, "content", "", "Markdown content")
+	cmd.Flags().StringVar(&contentFile, "content-file", "", "read Markdown content from a file")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply the proposal immediately")
+	return cmd
+}
+
+func noteAppendCmd() *cobra.Command {
+	var content, contentFile, heading string
+	var apply bool
+	cmd := &cobra.Command{
+		Use:   "append <path>",
+		Short: "Prepare a proposal that appends to a note",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body, err := readNoteCommandContent(content, contentFile)
+			if err != nil {
+				return err
+			}
+			if heading != "" {
+				body = "## " + strings.TrimSpace(heading) + "\n\n" + strings.TrimSpace(body)
+			}
+			return runDirectNoteCommandWithContent(cmd, args[0], proposals.ActionAppendToNote, body, apply)
+		},
+	}
+	cmd.Flags().StringVar(&content, "content", "", "Markdown content")
+	cmd.Flags().StringVar(&contentFile, "content-file", "", "read Markdown content from a file")
+	cmd.Flags().StringVar(&heading, "heading", "", "prepend a heading before appended content")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply the proposal immediately")
+	return cmd
+}
+
+func runDirectNoteCommand(cmd *cobra.Command, path string, kind proposals.ActionKind, content, contentFile string, apply bool) error {
+	body, err := readNoteCommandContent(content, contentFile)
+	if err != nil {
+		return err
+	}
+	return runDirectNoteCommandWithContent(cmd, path, kind, body, apply)
+}
+
+func runDirectNoteCommandWithContent(cmd *cobra.Command, path string, kind proposals.ActionKind, content string, apply bool) error {
+	return withApp(cmd, func(ctx context.Context, a *app.App) error {
+		r, err := runner(ctx, a)
+		if err != nil {
+			return err
+		}
+		prop, err := r.NoteChangeProposal(kind, path, content)
+		if err != nil {
+			return err
+		}
+		pm, err := proposalManager(ctx, a)
+		if err != nil {
+			return err
+		}
+		id, applied, err := saveMaybeApplyProposal(ctx, pm, prop, apply)
+		if err != nil {
+			return err
+		}
+		if format(cmd) == "json" {
+			return writeJSON(cmd, map[string]any{"proposal": prop, "proposal_id": id, "applied": applied})
+		}
+		if applied {
+			fmt.Fprintf(cmd.OutOrStdout(), "Applied proposal %d.\n", id)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "Proposal %d prepared. Review with `naudia show %d`, apply with `naudia apply %d`.\n", id, id, id)
+		}
+		return nil
+	})
+}
+
+func readNoteCommandContent(content, contentFile string) (string, error) {
+	if contentFile != "" {
+		data, err := os.ReadFile(contentFile)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
+	if strings.TrimSpace(content) != "" {
+		return content, nil
+	}
+	if !isTerminalStdin() {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(string(data)) != "" {
+			return string(data), nil
+		}
+	}
+	return "", errors.New("note content is required; use --content, --content-file, or pipe Markdown on stdin")
+}
+
+func saveMaybeApplyProposal(ctx context.Context, pm proposals.Manager, prop *proposals.Proposal, apply bool) (int64, bool, error) {
+	id, err := pm.Save(ctx, prop)
+	if err != nil {
+		return 0, false, err
+	}
+	prop.ID = id
+	if !apply {
+		return id, false, nil
+	}
+	if _, err := pm.Apply(ctx, id); err != nil {
+		return id, false, err
+	}
+	return id, true, nil
+}
+
 func proposalIDs(ctx context.Context, a *app.App, arg string) ([]int64, error) {
 	if arg != "all" {
 		id, err := strconv.ParseInt(arg, 10, 64)
@@ -1220,6 +1678,22 @@ func enabledDisabled(v bool) string {
 		return "enabled"
 	}
 	return "disabled"
+}
+
+func emptyString(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func stringIn(value string, values []string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }
 
 func splitCSV(value string) []string {
