@@ -1308,6 +1308,28 @@ func handleChatCommand(cmd *cobra.Command, ctx context.Context, r engines.Runner
 		}
 		fmt.Fprintln(out, contextpack.Table(*lastContext))
 		return true, false, nil
+	case line == "/proposals":
+		answer, err := pendingProposalAnswer(ctx, pm)
+		if err != nil {
+			return true, false, err
+		}
+		fmt.Fprintln(out, answer)
+		return true, false, nil
+	case strings.HasPrefix(line, "/set-path "):
+		parts := strings.Fields(strings.TrimSpace(strings.TrimPrefix(line, "/set-path ")))
+		if len(parts) < 2 {
+			return true, false, errors.New("/set-path requires a proposal ID and path")
+		}
+		id, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return true, false, errors.New("/set-path requires a numeric proposal ID")
+		}
+		answer, err := updateProposalActionPath(ctx, r, pm, id, strings.Join(parts[1:], " "))
+		if err != nil {
+			return true, false, err
+		}
+		fmt.Fprintln(out, answer)
+		return true, false, nil
 	case strings.HasPrefix(line, "/show "):
 		id, err := parseChatID(line, "/show ")
 		if err != nil {
@@ -1353,11 +1375,16 @@ func chatHelp() string {
 /show <proposal-id>
 /apply <proposal-id>
 /reject <proposal-id>
+/proposals
+/set-path <proposal-id> <path>
 /context
 /quit`)
 }
 
 func runAssistantTurn(cmd *cobra.Command, ctx context.Context, r engines.Runner, pm proposals.Manager, message string, history []ai.Message, apply bool) (engines.AssistResult, int64, bool, error) {
+	if result, handled, err := runNaudiaOperation(ctx, r, pm, message); handled {
+		return result, 0, false, err
+	}
 	result, err := r.Assist(ctx, message, history)
 	if err != nil {
 		return result, 0, false, err

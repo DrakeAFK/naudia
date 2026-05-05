@@ -60,11 +60,13 @@ func (r Runner) Assist(ctx context.Context, message string, history []ai.Message
 	if result.Answer == "" && len(result.FollowUpQuestions) > 0 {
 		result.Answer = result.FollowUpQuestions[0]
 	}
-	proposal := r.assistantProposal(message, out, pack)
-	if proposal != nil {
-		result.Proposal = proposal
-		if result.Answer == "" {
-			result.Answer = "I prepared a reviewable proposal for that change."
+	if len(result.FollowUpQuestions) == 0 {
+		proposal := r.assistantProposal(message, out, pack)
+		if proposal != nil {
+			result.Proposal = proposal
+			if result.Answer == "" {
+				result.Answer = "I prepared a reviewable proposal for that change."
+			}
 		}
 	}
 	if result.Answer == "" {

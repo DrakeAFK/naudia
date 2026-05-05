@@ -59,6 +59,25 @@ func (m Manager) Load(ctx context.Context, id int64) (*Proposal, db.ProposalReco
 	return &p, rec, nil
 }
 
+func (m Manager) Update(ctx context.Context, p *Proposal) error {
+	if p == nil || p.ID <= 0 {
+		return fmt.Errorf("proposal id is required")
+	}
+	if err := Validate(p); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return err
+	}
+	patch := RenderPatchPreview(m.VaultPath, p)
+	if err := m.Store.UpdateProposal(ctx, p.ID, string(p.Type), p.Title, p.Summary, string(data), patch); err != nil {
+		return err
+	}
+	path := filepath.Join(m.VaultPath, ".naudia", "proposals", fmt.Sprintf("proposal-%d.json", p.ID))
+	return util.WriteFileAtomic(path, data, 0o644)
+}
+
 func (m Manager) Apply(ctx context.Context, proposalID int64) (ApplyResult, error) {
 	p, rec, err := m.Load(ctx, proposalID)
 	if err != nil {

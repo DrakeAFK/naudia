@@ -466,6 +466,15 @@ func (d *DB) SaveProposal(ctx context.Context, vaultID int64, typ, title, summar
 	return res.LastInsertId()
 }
 
+func (d *DB) UpdateProposal(ctx context.Context, id int64, typ, title, summary, proposalJSON, patchText string) error {
+	_, err := d.SQL.ExecContext(ctx, `
+		UPDATE proposals
+		SET type = ?, title = ?, summary = ?, proposal_json = ?, patch_text = ?
+		WHERE id = ? AND status = 'pending'
+	`, typ, title, summary, proposalJSON, patchText, id)
+	return err
+}
+
 func (d *DB) GetProposal(ctx context.Context, id int64) (ProposalRecord, error) {
 	var p ProposalRecord
 	err := d.SQL.QueryRowContext(ctx, `

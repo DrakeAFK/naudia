@@ -221,6 +221,8 @@ Local AI keeps private notes on this machine.
 - [ ] Review the proposal workflow
 /show 3
 /apply 3
+/proposals
+/set-path 3 Projects/Foo.md
 ```
 
 For deterministic note edits without model involvement:
