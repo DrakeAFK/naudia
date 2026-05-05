@@ -1308,10 +1308,20 @@ func handleChatCommand(cmd *cobra.Command, ctx context.Context, r engines.Runner
 		}
 		fmt.Fprintln(out, contextpack.Table(*lastContext))
 		return true, false, nil
-	case line == "/proposals":
+	case line == "/proposals" || strings.HasPrefix(line, "/proposals "):
+		extra := strings.TrimSpace(strings.TrimPrefix(line, "/proposals"))
 		answer, err := pendingProposalAnswer(ctx, pm)
 		if err != nil {
 			return true, false, err
+		}
+		if extra != "" {
+			explanation, ok, explainErr := explainOnlyPendingProposal(ctx, pm)
+			if explainErr != nil {
+				return true, false, explainErr
+			}
+			if ok {
+				answer += "\n\n" + explanation
+			}
 		}
 		fmt.Fprintln(out, answer)
 		return true, false, nil

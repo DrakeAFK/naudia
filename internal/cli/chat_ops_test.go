@@ -82,6 +82,76 @@ func TestRunNaudiaOperationUpdatesPendingProposalPath(t *testing.T) {
 	}
 }
 
+func TestRunNaudiaOperationExplainsProposalByIDWithoutVaultContext(t *testing.T) {
+	ctx := context.Background()
+	r, pm, cleanup := testChatOpsRunner(t, ctx)
+	defer cleanup()
+	id, err := pm.Save(ctx, &proposals.Proposal{
+		Type:    proposals.TypeVaultReview,
+		Title:   "Create vault review note",
+		Summary: "Create a durable review note sourced from the deterministic vault scan.",
+		Actions: []proposals.ProposalAction{{
+			ID:      "create-review",
+			Kind:    proposals.ActionCreateNote,
+			Path:    "Reviews/Vault Review.md",
+			Content: "# Vault Review\n",
+		}},
+		RiskLevel: proposals.RiskLow,
+		CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	result, handled, err := runNaudiaOperation(ctx, r, pm, "what is proposal 1 about")
+	if err != nil {
+		t.Fatalf("runNaudiaOperation() error = %v", err)
+	}
+	if !handled {
+		t.Fatal("expected proposal explanation to be handled before vault assistant")
+	}
+	if !strings.Contains(result.Answer, "Proposal #1") || !strings.Contains(result.Answer, "normal Markdown review note") || !strings.Contains(result.Answer, "rule-based vault scan") {
+		t.Fatalf("answer did not explain proposal:\n%s", result.Answer)
+	}
+	if !strings.Contains(result.Answer, "create `Reviews/Vault Review.md`") {
+		t.Fatalf("answer did not explain action:\n%s", result.Answer)
+	}
+	if strings.Contains(result.Answer, "HomeLab") || len(result.Context.Items) != 0 {
+		t.Fatalf("proposal explanation should not include vault context: %#v\n%s", result.Context, result.Answer)
+	}
+	_ = id
+}
+
+func TestRunNaudiaOperationExplainsOnlyPendingProposalWithoutID(t *testing.T) {
+	ctx := context.Background()
+	r, pm, cleanup := testChatOpsRunner(t, ctx)
+	defer cleanup()
+	if _, err := pm.Save(ctx, &proposals.Proposal{
+		Type:      proposals.TypeVaultReview,
+		Title:     "Create vault review note",
+		Summary:   "Create a durable review note sourced from the deterministic vault scan.",
+		Actions:   []proposals.ProposalAction{{ID: "create-review", Kind: proposals.ActionCreateNote, Path: "Reviews/Vault Review.md", Content: "# Vault Review\n"}},
+		RiskLevel: proposals.RiskLow,
+		CreatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	result, handled, err := runNaudiaOperation(ctx, r, pm, "the proposal says create a durable review note sourced from the deterministic vault scan, what does that mean?")
+	if err != nil {
+		t.Fatalf("runNaudiaOperation() error = %v", err)
+	}
+	if !handled {
+		t.Fatal("expected single pending proposal explanation to be handled before vault assistant")
+	}
+	if !strings.Contains(result.Answer, "normal Markdown review note") {
+		t.Fatalf("answer did not explain single proposal:\n%s", result.Answer)
+	}
+	if len(result.Context.Items) != 0 {
+		t.Fatalf("proposal explanation should not include vault context: %#v", result.Context)
+	}
+}
+
 func TestNormalizeVaultRelativePathStripsVaultPrefix(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "DrakeAFK")
 	if err := util.EnsureNaudiaDirs(root); err != nil {
